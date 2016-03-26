@@ -1,0 +1,12 @@
+set ns [new Simulator]
+source tb_compat.tcl
+set oldos UBUNTU14-64-PROBE 
+set m [$ns node]
+tb-set-node-os $m $oldos
+set maxslaves 4
+for {set i 1} {$i <= $maxslaves} {incr i} {
+        set s($i) [$ns node]
+        tb-set-node-os $s($i) $oldos
+}
+$ns rtproto Static
+$ns run
