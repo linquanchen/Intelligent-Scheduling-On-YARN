@@ -1,0 +1,85 @@
+ssh kewu@nome.nmc-probe.org
+
+(perform on master node)
+rsync -avz /proj/ClusterSched16/719 /groups/ClusterSched16/advcc10/
+
+ssh kewu@m.[experiment-name].ClusterSched16.nome.nx
+
+cd /groups/ClusterSched16/advcc10/719/bin
+
+export PATH="/groups/ClusterSched16/advcc10/719/bin:$PATH"
+
+generate a hostfile with all hosts that are part of your experiment
+go to the emulab login page -> Experimentation->Experiment List -> YOUREXPERIMENT -> Details tab
+copy the list of machines to ~/tetris.deth  on your " master node "
+m.experiment-name.ClusterSched16.nome.nx
+s-1.experiment-name.ClusterSched16.nome.nx
+s-2.experiment-name.ClusterSched16.nome.nx
+s-3.experiment-name.ClusterSched16.nome.nx
+s-4.experiment-name.ClusterSched16.nome.nx
+
+cd ~
+tetris.sh
+
+rsync /proj/ClusterSched16/images/debian-current.qcow.GOLD /groups/ClusterSched16/advcc10/debian-current.qcow
+
+check to see if  /groups/ClusterSched16/advccX/719/bin/gennetmaster.py has a line with:
+rackcap = [1,6,6,6,6]
+
+On the "master node", as root
+cd /groups/ClusterSched16/advcc10/719/bin
+./net-master.sh 10
+
+On each slave node, as root:
+cd /groups/ClusterSched16/advcc10/719/bin
+./net-slave.sh
+
+On the "master node", as root
+cd /groups/ClusterSched16/advcc10/719/bin
+./quickstart.sh 10
+
+
+on a new shell
+ssh kewu@m.[experiment-name].ClusterSched16.nome.nx
+ssh root@10.10.1.10
+password: changeme123
+
+addgroup --gid 6043 --force-badname Clu-advcc101
+adduser --uid 10160 --gid 6043 kewu
+adduser --uid 10166 --gid 6043 linquanc
+
+copy content of id_dsa.pub to ~/.ssh/authorized_keys
+~/.ssh/config:
+Host * ForwardAgent yes
+
+Add your new user to the /etc/sudoers file
+chmod 777 /etc/sudoers
+andrew_id        ALL=NOPASSWD: ALL
+
+
+update your copy of the scripts mentioned below to point to the location of your  VM image.
+./rackstart.sh r0 8G 8
+
+Subsequent VMs are started on a rack by rack basis. Login to each of the remaining four physical nodes (s-1 to s-4) and start up a batch of VMs on that physical node as follows:
+./rackstart.sh r1 4G 2
+./rackstart.sh r2 4G 2
+./rackstart.sh r3 4G 2
+./rackstart.sh r4 4G 2
+
+ssh root@10.10.1.10
+ssh root@10.10.[2-5].[10-15]
+
+login to master host as kewu (NOT as root). then run:
+cd /groups/ClusterSched16/advcc10/719/bin
+./mpssh -u root -s -f vmips date
+
+
+As root of master host:
+apt-get install nfs-kernel-server
+mkdir -p /opt/projects/advcc
+echo "/opt/projects/advcc 10.10.*.*(rw,sync,no_root_squash)" >> /etc/exports
+service nfs-kernel-server start
+
+The VM should already have the /etc/fstab entry to mount this share. Please make sure you’ve changed all occurrences of 10.10.1.10 in /etc/fstab to 10.NETID.1.10 during your VM configuration step and persist it.
+
+
