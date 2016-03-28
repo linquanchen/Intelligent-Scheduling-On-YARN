@@ -12,18 +12,19 @@ export PATH="/groups/ClusterSched16/advcc10/719/bin:$PATH"
 generate a hostfile with all hosts that are part of your experiment
 go to the emulab login page -> Experimentation->Experiment List -> YOUREXPERIMENT -> Details tab
 copy the list of machines to ~/tetris.deth  on your " master node "
-m.experiment-name.ClusterSched16.nome.nx
-s-1.experiment-name.ClusterSched16.nome.nx
-s-2.experiment-name.ClusterSched16.nome.nx
-s-3.experiment-name.ClusterSched16.nome.nx
-s-4.experiment-name.ClusterSched16.nome.nx
+
+m.Phase1Team10.ClusterSched16.nome.nx
+s-1.Phase1Team10.ClusterSched16.nome.nx
+s-2.Phase1Team10.ClusterSched16.nome.nx
+s-3.Phase1Team10.ClusterSched16.nome.nx
+s-4.Phase1Team10.ClusterSched16.nome.nx
 
 cd ~
 tetris.sh
 
 rsync /proj/ClusterSched16/images/debian-current.qcow.GOLD /groups/ClusterSched16/advcc10/debian-current.qcow
 
-check to see if  /groups/ClusterSched16/advccX/719/bin/gennetmaster.py has a line with:
+check to see if  /groups/ClusterSched16/advcc10/719/bin/gennetmaster.py has a line with:
 rackcap = [1,6,6,6,6]
 
 On the "master node", as root
@@ -43,18 +44,22 @@ on a new shell
 ssh kewu@m.[experiment-name].ClusterSched16.nome.nx
 ssh root@10.10.1.10
 password: changeme123
+passwd
 
 addgroup --gid 6043 --force-badname Clu-advcc101
 adduser --uid 10160 --gid 6043 kewu
 adduser --uid 10166 --gid 6043 linquanc
 
 copy content of id_dsa.pub to ~/.ssh/authorized_keys
-~/.ssh/config:
-Host * ForwardAgent yes
+~/.ssh/config
+Host *
+    ForwardAgent yes
 
 Add your new user to the /etc/sudoers file
-chmod 777 /etc/sudoers
-andrew_id        ALL=NOPASSWD: ALL
+chmod 660 /etc/sudoers
+kewu        ALL=NOPASSWD: ALL
+linquanc    ALL=NOPASSWD: ALL
+chmod 440 /etc/sudoers
 
 
 update your copy of the scripts mentioned below to point to the location of your  VM image.
