@@ -121,9 +121,6 @@ yarn-site.xml
 yarn-site.xml.CapacityScheduler
 yarn-site.xml.TetriScheduler
 
-===================================
-===================================
-
 exit from VM, run on master node
 Untar /proj/ClusterSched16/exp-advcc.tgz  to $HADOOP_HOME
 
@@ -138,17 +135,9 @@ When the scheduling policy is changed, you need to restart the resource manager.
 $HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR stop resourcemanager
 
 
-===== recitation
-known_host file (make sure all VMs know each other and trust each other)
 
-know what is RM, NM, history manager, proxy manager
-
-Hadoop Startup guide!
-Need to export all evar before run these startup commands
-See slides todo list
-
-*NOT run as root*, as andrew id
-master node($1), HDFS namenode($2) --> run on master node (VM0)
-
-config ./.bashrc (for manually ssh)
-
+$HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR --script hdfs stop namenode
+$HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR stop resourcemanager
+$HADOOP_YARN_HOME/sbin/yarn-daemon.sh stop proxyserver --config $HADOOP_CONF_DIR
+$HADOOP_PREFIX/sbin/mr-jobhistory-daemon.sh stop historyserver --config $HADOOP_CONF_DIR
+$HADOOP_HOME/sbin/yarn-daemon.sh  --config $HADOOP_CONF_DIR/amnode stop nodemanager
