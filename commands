@@ -29,15 +29,15 @@ rackcap = [1,6,6,6,6]
 
 On the "master node", as root
 cd /groups/ClusterSched16/advcc10/719/bin
-./net-master.sh 10
+sudo ./net-master.sh 10
 
 On each slave node, as root:
 cd /groups/ClusterSched16/advcc10/719/bin
-./net-slave.sh
+sudo ./net-slave.sh
 
 On the "master node", as root
 cd /groups/ClusterSched16/advcc10/719/bin
-./quickstart.sh 10
+sudo ./quickstart.sh 10
 
 
 on a new shell
@@ -50,10 +50,14 @@ addgroup --gid 6043 --force-badname Clu-advcc101
 adduser --uid 10160 --gid 6043 kewu
 adduser --uid 10166 --gid 6043 linquanc
 
-copy content of id_dsa.pub to ~/.ssh/authorized_keys
-~/.ssh/config
+mkdir ~/.ssh/
+vim ~/.ssh/authorized_keys
+vim ~/.ssh/config
 Host *
     ForwardAgent yes
+
+chmod 600 ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/config
 
 Add your new user to the /etc/sudoers file
 chmod 660 /etc/sudoers
@@ -62,21 +66,26 @@ linquanc    ALL=NOPASSWD: ALL
 chmod 440 /etc/sudoers
 
 
-update your copy of the scripts mentioned below to point to the location of your  VM image.
-./rackstart.sh r0 8G 8
+vim /etc/fstab
+10.10.1.1
+
+/sbin/shutdown -h now
+
+update your copy of the scripts mentioned below to point to the location of your  VM image./
+sudo ./rackstart.sh r0 8G 8
 
 Subsequent VMs are started on a rack by rack basis. Login to each of the remaining four physical nodes (s-1 to s-4) and start up a batch of VMs on that physical node as follows:
-./rackstart.sh r1 4G 2
-./rackstart.sh r2 4G 2
-./rackstart.sh r3 4G 2
-./rackstart.sh r4 4G 2
+sudo ./rackstart.sh r1 4G 2
+sudo ./rackstart.sh r2 4G 2
+sudo ./rackstart.sh r3 4G 2
+sudo ./rackstart.sh r4 4G 2
 
 ssh root@10.10.1.10
 ssh root@10.10.[2-5].[10-15]
 
 login to master host as kewu (NOT as root). then run:
 cd /groups/ClusterSched16/advcc10/719/bin
-./mpssh -u root -s -f vmips date
+./mpssh -s -f vmips date
 
 
 As root of master host:
@@ -87,4 +96,59 @@ service nfs-kernel-server start
 
 The VM should already have the /etc/fstab entry to mount this share. Please make sure you’ve changed all occurrences of 10.10.1.10 in /etc/fstab to 10.NETID.1.10 during your VM configuration step and persist it.
 
+sudo su
+cp /proj/ClusterSched16/hadoop-2.2-advcc-v2.tar.gz /opt/projects/advcc/hadoop-2.2-advcc.tar.gz
+cd /opt/projects/advcc
+tar -xzvf hadoop-2.2-advcc.tar.gz
+
+Change /opt/projects/advcc/hadoop/scripts/setup-scratch-user.sh to use your andrew ID and group ID
+
+Install Java 6
+
+in master node 
+vim ~/.bashrc
+export HADOOP_HOME=/opt/projects/advcc/hadoop/hadoop-2.2.0
+export HADOOP_CONF_DIR=${HADOOP_HOME}/etc/hadoop
+export HADOOP_PREFIX=$HADOOP_HOME
+export HADOOP_YARN_HOME=$HADOOP_HOME
+export JAVA_HOME=/usr/lib/jvm/java-6-openjdk-amd64
+
+
+Modify yarn.tetris.hostnames in yarn-site.xml* under $HADOOP_CONF_DIR r1h0,r1h1,r1h2,r1h3,r1h4,r1h5,r2h0,r2h1,r2h2,r2h3,r2h4,r2h5,r3h0,r3h1,r3h2,r3h3,r3h4,r3h5,r4h0,r4h1,r4h2,r4h3,r4h4,r4h5
+amnode/yarn-site.xml
+gpurack/yarn-site.xml
+yarn-site.xml
+yarn-site.xml.CapacityScheduler
+yarn-site.xml.TetriScheduler
+
+===================================
+===================================
+
+exit from VM, run on master node
+Untar /proj/ClusterSched16/exp-advcc.tgz  to $HADOOP_HOME
+
+ssh to r0h0 VM
+./replayTrace.py -c config-mini -t traceMPI-mini
+
+from r0h0, as user, ssh to all slave VMs (you can script it) and distribute the resulting r0h0:~/.ssh/known_hosts to all slave VMs. This is needed for mpirun to be able to start MPI jobs from any VM.
+
+copying $HADOOP_CONF_DIR/yarn-site.xml.TetriScheduler to $HADOOP_CONF_DIR/yarn-site.xml (or creating a symlink)
+
+When the scheduling policy is changed, you need to restart the resource manager.
+$HADOOP_YARN_HOME/sbin/yarn-daemon.sh --config $HADOOP_CONF_DIR stop resourcemanager
+
+
+===== recitation
+known_host file (make sure all VMs know each other and trust each other)
+
+know what is RM, NM, history manager, proxy manager
+
+Hadoop Startup guide!
+Need to export all evar before run these startup commands
+See slides todo list
+
+*NOT run as root*, as andrew id
+master node($1), HDFS namenode($2) --> run on master node (VM0)
+
+config ./.bashrc (for manually ssh)
 
