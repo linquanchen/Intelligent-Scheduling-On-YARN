@@ -1,0 +1,7 @@
+## All following steps made in master node
+
+1. Use 'commands' file to help built the cluster manually.
+2. USe 'run_setup-scratch-user.sh' to create a scratch space. Steps: cd ~; ./run_setup-scratch-user.sh
+3. USe 'configure_yarn.sh' to configure YARN. Steps: cd ~; ./configure_yarn.sh
+4. Use 'upload_know_hosts.sh' and 'upload_keys' to upload key files to all VMs. cd ~; Download the file; 
+   ./upload_keys.sh ./upload_known_hosts.sh
