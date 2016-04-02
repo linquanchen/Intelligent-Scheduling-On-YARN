@@ -101,8 +101,26 @@ private:
         for (unsigned int i = 0; i < racks.size(); i++)
             for (unsigned int j = 0; j < racks[i].size(); j++)
                 if (racks[i][j].isFree) {
-            racks[i][j].isFree = false;
+                    racks[i][j].isFree = false;
                     return racks[i][j].machineID;
+                }
+        return -1;
+    }
+    
+    /** @brief Get the id of the random free machines,
+     *         Mark the machine as allocated
+     */
+    int GetRandomFreeMachine() {
+        int rackIndex, machineIndex;
+        int rackNum = racks.size(), machineNum;
+        while(1) {
+            rackIndex = rand() % rackNum;
+            machineNum = racks[rackIndex].size();
+            machineIndex = rand() % machineNum;
+            if (racks[rackIndex][machineIndex].isFree) {
+                racks[rackIndex][machineIndex].isFree = false;
+                return racks[rackIndex][machineIndex].machineID;
+            }
         }
         return -1;
     }
@@ -171,7 +189,7 @@ public:
         if (queue.empty() && GetFreeMachinesNum() >= k) {
             std::set<int32_t> machines;
             for (int i = 0; i < k; i++)
-                machines.insert(GetNextFreeMachine());
+                machines.insert(GetRandomFreeMachine());
             AllocResourcesWrapper(jobId, machines);
         } else {
             // not enough resources or there are some jobs ahead of this job, 
@@ -198,7 +216,7 @@ public:
 
             std::set<int32_t> machines;
             for (int i = 0; i < k; i++)
-                machines.insert(GetNextFreeMachine());
+                machines.insert(GetRandomFreeMachine());
             AllocResourcesWrapper(jobId, machines);
         }
     }

@@ -29,15 +29,20 @@ using boost::shared_ptr;
 
 using namespace alsched;
 
+#define GPU_RACK_INDEX 0
+#define MAX_MACHINES_PER_RACK 6
+
 class TetrischedServiceHandler : virtual public TetrischedServiceIf
 {
 private:
     struct QueueJob {
         JobID jobId;
         int32_t k;
-        QueueJob(JobID jobId, int32_t k) {
+        job_t::type jobType;
+        QueueJob(JobID jobId, int32_t k, job_t::type jobType) {
             this->jobId = jobId;
             this->k = k;
+            this->jobType = jobType;
         }
     };
 
@@ -107,6 +112,65 @@ private:
         return -1;
     }
 
+    int GetNextFreeGPUMachine() {
+        for (unsigned int i = 0; i < racks[GPU_RACK_INDEX].size(); i++) {
+            if (racks[GPU_RACK_INDEX][i].isFree) {
+                racks[GPU_RACK_INDEX][i].isFree = false;
+                return racks[GPU_RACK_INDEX][i].machineID;
+            }
+        }
+        return -1;
+    }
+
+    std::vector<int> GetFreeMachines() {
+        std::vector<int> freeMachines;
+        for (unsigned int i = 0; i < racks.size(); i++) {
+            int num = 0;
+            for (unsigned int j = 0; j < racks;[])
+        }
+    }
+
+    int GetRackForMPIJob(unsigned int k) {
+        for (unsigned int i = 1; i < racks.size(); i++) {
+    } 
+
+    int GetMaxFreeMachineRack() {
+        int rackIndex = 0;
+        for (unsigned int i = 0; i < racks.size(); i++) {
+            int max = 0;
+            int currNum = 0;
+            for (unsigned int j = 0; j < racks[i].size(); j++) {
+                if (racks[i][j].isFree) {
+                    currNum++;  
+                }
+            }
+            if (currNum >= max) {
+                max = currNum;
+                rackIndex = i;
+            }
+        }
+        return rackIndex;
+        
+    }
+
+    int GetMinFreeMachineRack() {
+        int rackIndex = 0;
+        for (unsigned int i = 0; i < racks.size(); i++) {
+            int min = MAX_MACHINES_PER_RACK;
+            int currNum = 0;
+            for (unsigned int j = 0; j < racks[i].size(); j++) {
+                if (racks[i][j].isFree) {
+                    currNum++;  
+                }
+            }
+            if (currNum <= min) {
+                min = currNum;
+                rackIndex = i;
+            }
+        }
+        return rackIndex;
+    }
+
     /** @brief Mark a machine as free */
     void FreeMachine(unsigned int id) {
         unsigned int rackID = 0;
@@ -170,13 +234,27 @@ public:
         // resources can be allocated to this jon directly
         if (queue.empty() && GetFreeMachinesNum() >= k) {
             std::set<int32_t> machines;
+            switch(jobType) {
+                
+            }
             for (int i = 0; i < k; i++)
                 machines.insert(GetNextFreeMachine());
             AllocResourcesWrapper(jobId, machines);
         } else {
             // not enough resources or there are some jobs ahead of this job, 
             // this job must enqueue
-            queue.push_back(QueueJob(jobId, k));
+            queue.push_back(QueueJob(jobId, k, jobType));
+        }
+    }
+
+    void addGPUJob() {
+        
+    }
+
+    void addMPIJob(std::set<int32_t> machines, const int32_t k) {
+        int rackIndex = GetMaxFreeMachineRack();
+        for (unsigned int i = 0; i < racks[rackIndex].size(); i++) {
+            if ()
         }
     }
 
