@@ -9,9 +9,10 @@
 username="kewu" 
 
 # Mount
-./mpssh -u $username -s -f vmips "mount -a"
+./mpssh -u root -s -f vmips "mount -a"
 
 # set up environment variables in ~/.bashrc
+./mpssh -u $username -s -f vmips "rm ~/.bashrc"
 ./mpssh -u $username -s -f vmips "echo \"export HADOOP_HOME=/opt/projects/advcc/hadoop/hadoop-2.2.0\" >> ~/.bashrc"
 ./mpssh -u $username -s -f vmips "echo \"export HADOOP_CONF_DIR=\${HADOOP_HOME}/etc/hadoop\" >> ~/.bashrc"
 ./mpssh -u $username -s -f vmips "echo \"export HADOOP_PREFIX=\$HADOOP_HOME\" >> ~/.bashrc"
