@@ -28,6 +28,11 @@ using namespace ::apache::thrift::server;
 using boost::shared_ptr;
 
 using namespace alsched;
+#ifdef DEBUG
+# define dbg_printf(...) printf(__VA_ARGS__)
+#else
+# define dbg_printf(...)
+#endif
 
 #define GPU_RACK_INDEX 0
 #define MAX_MACHINES_PER_RACK 6
@@ -200,7 +205,7 @@ private:
         std::vector<int> freeMachines = GetFreeMachines();
          
         if (freeMachines[0] >= k) {
-            printf("Allocate all to GPU rack......");
+            printf("Allocate all to GPU rack......\n");
             AddJobsByRack(machines, k, 0);
             return true;
         }
