@@ -114,6 +114,7 @@ private:
 
     std::vector<int> GetFreeMachines() {
         std::vector<int> freeMachines; 
+        printf("Free machines per rack: ");
         for (unsigned int i = 0; i < racks.size(); i++) {
             int num = 0;
             for (unsigned int j = 0; j < racks[i].size(); j++) {
@@ -121,22 +122,26 @@ private:
                     num++;
                 }
             }
+            printf("%d, ", num);
             freeMachines.push_back(num);
         }
+        printf("\n");
         return freeMachines;
     }
 
-    void AddJobsByRack(std::set<int> machines, int k, int index) {
+    void AddJobsByRack(std::set<int> &machines, int k, int index) {
         for (unsigned int i = 0; k != 0 && i < racks[index].size(); i++) {
             if (racks[index][i].isFree) {
                 machines.insert(racks[index][i].machineID);
+                printf("Allocate VM %d: r%dh%d\n", racks[index][i].machineID, index+1, i+1);
+                racks[index][i].isFree = false;
                 k--;
             }
         }
     }
     
     // All machines
-    int FindMinRack(std::vector<int> freeMachines) {
+    int FindMinRack(std::vector<int> &freeMachines) {
         int min = MAX_MACHINES_PER_RACK;
         int index = -1;
         for (unsigned int i = 0; i < freeMachines.size(); i++) {
@@ -149,10 +154,10 @@ private:
         return index;
     }
 
-    bool GetMachinesForMPI(std::set<int> machines, int k) {
+    bool GetMachinesForMPI(std::set<int> &machines, int k) {
         std::vector<int> freeMachines = GetFreeMachines();
         
-        int min = MAX_MACHINES_PER_RACK;
+        int min = MAX_MACHINES_PER_RACK + 1;
         int index = -1;
         for (unsigned int i = 1; i < freeMachines.size(); i++) {
             int num = freeMachines[i];
@@ -164,21 +169,24 @@ private:
             }        
         }
         if (index != -1) {
+            printf("Allocate all to rack %d\n", index);
             AddJobsByRack(machines, k, index);
             return true;
         }
         
         if (freeMachines[0] >= k) {
+            printf("Allocate all to rack 0, GPU rack!!!!\n");
             AddJobsByRack(machines, k, 0);
             return true;
         }
         
         while (k != 0) {
             index = FindMinRack(freeMachines);
+            printf("Allocate part to rack %d\n", index);
             if (freeMachines[index] <= k) {
                 AddJobsByRack(machines, freeMachines[index], index);
-                freeMachines[index] = 0;
                 k -= freeMachines[index];
+                freeMachines[index] = 0;
             }
             else {
                 AddJobsByRack(machines, k, index);
@@ -188,10 +196,11 @@ private:
         return false;
     }
 
-    bool GetMachinesForGPU(std::set<int> machines, int k) {
+    bool GetMachinesForGPU(std::set<int> &machines, int k) {
         std::vector<int> freeMachines = GetFreeMachines();
          
         if (freeMachines[0] >= k) {
+            printf("Allocate all to GPU rack......");
             AddJobsByRack(machines, k, 0);
             return true;
         }
@@ -199,10 +208,11 @@ private:
         int index;
         while (k != 0) {
             index = FindMinRack(freeMachines);
+            printf("Allocate part to rack %d\n", index);
             if (freeMachines[index] <= k) {
                 AddJobsByRack(machines, freeMachines[index], index);
-                freeMachines[index] = 0;
                 k -= freeMachines[index];
+                freeMachines[index] = 0;
             }
             else {
                 AddJobsByRack(machines, k, index);
@@ -212,7 +222,7 @@ private:
         return false;
     } 
 
-    bool GetMachines(std::set<int> machines, job_t::type jobType, int k) {
+    bool GetMachines(std::set<int> &machines, job_t::type jobType, int k) {
         switch(jobType) {
             case 0:
                 return GetMachinesForMPI(machines, k);
@@ -288,13 +298,14 @@ public:
         // resources can be allocated to this jon directly
         if (queue.empty() && GetFreeMachinesNum() >= k) {
             std::set<int32_t> machines;
-            
+            printf("Add job %d, jobType: %d, VM: %d\n", jobId, jobType, k); 
             GetMachines(machines, jobType, k);
-
             AllocResourcesWrapper(jobId, machines);
+            printf("Finish Add job %d.....\n", jobId);
         } else {
             // not enough resources or there are some jobs ahead of this job, 
             // this job must enqueue
+            printf("Push job %d to queue, jobType: %d, VM: %d\n", jobId, jobType, k);
             queue.push_back(QueueJob(jobId, k, jobType));
         }
     }
@@ -306,8 +317,10 @@ public:
     {
         // first free machine resources
         for (std::set<int32_t>::iterator it=machines.begin(); 
-                                                    it!=machines.end(); ++it)
+                                                    it!=machines.end(); ++it){
             FreeMachine(*it);
+            printf("Free VM %d...........\n", *it);
+        }
 
         // check the head of the queue to see if there is enough resource
         while (!queue.empty() && GetFreeMachinesNum() >= queue.front().k) {
@@ -315,11 +328,13 @@ public:
             int k = queue.front().k;
             job_t::type jobType = queue.front().jobType;
             queue.pop_front();
-            
+
             std::set<int32_t> machines;
-            GetMachines(machines, jobType, k);    
             
+            printf("Add job %d, jobType: %d, VM: %d\n", jobId, jobType, k); 
+            GetMachines(machines, jobType, k);    
             AllocResourcesWrapper(jobId, machines);
+            printf("Finish Add job %d.....\n", jobId);
         }
     }
 };
