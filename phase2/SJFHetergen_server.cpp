@@ -61,6 +61,8 @@ private:
     /** @brief The racks and machines array */
     std::vector<std::vector<MachineResource> > racks;
 
+    int maxMachinesPerRack = 0;
+
     /** @brief Read config-mini config file for topology information
      *  @return A vector which size is the number of racks, each value is the 
      *          number of machines on each rack 
@@ -84,6 +86,9 @@ private:
         for (rapidjson::SizeType i = 0; i < a.Size(); i++) { 
             // rapidjson uses SizeType instead of size_t.
             rv.push_back(a[i].GetInt());
+
+            if (maxMachinesPerRack < a[i].GetInt())
+                maxMachinesPerRack = a[i].GetInt();
         }
     
         return rv;
@@ -142,8 +147,121 @@ private:
         }
     }
 
-    bool GetBestMachines(job_t::type jobType, int k, std::set<int32_t> &machines) {
+    std::vector<int> GetFreeMachines() {
+        std::vector<int> freeMachines; 
+        for (unsigned int i = 0; i < racks.size(); i++) {
+            int num = 0;
+            for (unsigned int j = 0; j < racks[i].size(); j++) {
+                if (racks[i][j].isFree) {
+                    num++;
+                }
+            }
+            freeMachines.push_back(num);
+        }
+        return freeMachines;
+    }
 
+    void AddJobsByRack(std::set<int> & machines, int k, int index) {
+        for (unsigned int i = 0; k != 0 && i < racks[index].size(); i++) {
+            if (racks[index][i].isFree) {
+                machines.insert(racks[index][i].machineID);
+                k--;
+                racks[index][i].isFree = false;
+            }
+        }
+        if (k != 0) {
+            printf("Something wrong with AddJobsByRack()");
+        }
+    }
+    
+    // All machines
+    int FindMinRack(std::vector<int> & freeMachines) {
+        int min = maxMachinesPerRack;
+        int index = -1;
+        for (unsigned int i = 0; i < freeMachines.size(); i++) {
+            int num = freeMachines[i];
+            if (num != 0 && num <= min) {
+                min = num;
+                index = i;
+            }
+        }
+        return index;
+    }
+
+    bool GetMachinesForMPI(std::set<int> & machines, int k) {
+        std::vector<int> freeMachines = GetFreeMachines();
+        
+        int min = maxMachinesPerRack + 1;
+        int index = -1;
+        for (unsigned int i = 1; i < freeMachines.size(); i++) {
+            int num = freeMachines[i];
+            if (num >= k) {
+                if (num < min) {
+                    min = num;
+                    index = i;
+                }
+            }        
+        }
+        if (index != -1) {
+            AddJobsByRack(machines, k, index);
+            return true;
+        }
+        
+        if (freeMachines[0] >= k) {
+            AddJobsByRack(machines, k, 0);
+            return true;
+        }
+        
+        while (k != 0) {
+            index = FindMinRack(freeMachines);
+            if (freeMachines[index] <= k) {
+                AddJobsByRack(machines, freeMachines[index], index);
+                k -= freeMachines[index];
+                freeMachines[index] = 0;
+            }
+            else {
+                AddJobsByRack(machines, k, index);
+                k = 0;
+            }
+        }
+        return false;
+    }
+
+    bool GetMachinesForGPU(std::set<int> & machines, int k) {
+        std::vector<int> freeMachines = GetFreeMachines();
+         
+        if (freeMachines[0] >= k) {
+            AddJobsByRack(machines, k, 0);
+            return true;
+        }
+        
+        int index;
+        while (k != 0) {
+            index = FindMinRack(freeMachines);
+            if (freeMachines[index] <= k) {
+                AddJobsByRack(machines, freeMachines[index], index);
+                k -= freeMachines[index];
+                freeMachines[index] = 0;
+            }
+            else {
+                AddJobsByRack(machines, k, index);
+                k = 0;
+            }
+        }
+        return false;
+    } 
+
+    bool GetBestMachines(job_t::type jobType, int k, std::set<int32_t> &machines) {
+        switch(jobType) {
+            case job_t::JOB_MPI:
+                return GetMachinesForMPI(machines, k);
+            case job_t::JOB_GPU:   
+                return GetMachinesForGPU(machines, k);
+            default:{
+                printf("Unknown job type:%d", jobType);
+                return false;
+            }
+        } 
     }
 
 public:
@@ -200,39 +318,41 @@ public:
                                                     it!=machines.end(); ++it)
             FreeMachine(*it);
 
+        while (true) {
+            std::list<ListJob>::iterator bestJobToRun;
+            double shortestTime = -1, tmpTime;
+            std::set<int32_t> bestMachines, tmpMachines;
 
-        std::list<ListJob>::iterator bestJobToRun;
-        double shortestTime = -1, tmpTime;
-        std::set<int32_t> bestMachines, tmpMachines;
-
-        int freeMachineNum = GetFreeMachinesNum();
-        for (std::list<ListJob>::iterator i=list.begin(); i != list.end(); ++i){
-            if (freeMachineNum >= (*i).k) {
-                // try to find a optimal configuration 
-                bool isBest = GetBestMachines((*i).jobType, (*i).k, tmpMachines);
-                
-                tmpTime = isBest ? (*i).duration : (*i).slowDuration;
-
-                // update schedule solution
-                if (shortestTime < 0 || shortestTime > tmpTime) {
-                    // free machine resources of the last schedule solution
-                    if (shortestTime > 0) {
-                        for (std::set<int32_t>::iterator it=bestMachines.begin(); 
-                                                    it!=bestMachines.end(); ++it)
-                            FreeMachine(*it);
-                    }
+            int freeMachineNum = GetFreeMachinesNum();
+            for (std::list<ListJob>::iterator i=list.begin(); i != list.end(); ++i){
+                if (freeMachineNum >= (*i).k) {
+                    // try to find a optimal configuration 
+                    bool isBest = GetBestMachines((*i).jobType, (*i).k, tmpMachines);
                     
-                    bestJobToRun = i;
-                    shortestTime = tmpTime;
-                    bestMachines = tmpMachines;
-                    tmpMachines.clear();
-                }  
-            }
-        }
+                    tmpTime = isBest ? (*i).duration : (*i).slowDuration;
 
-        if (shortestTime > 0) {
-            list.erase(bestJobToRun);
-            AllocResourcesWrapper((*bestJobToRun).jobId, bestMachines);
+                    // update schedule solution
+                    if (shortestTime < 0 || shortestTime > tmpTime) {
+                        // free machine resources of the last schedule solution
+                        if (shortestTime > 0) {
+                            for (std::set<int32_t>::iterator it=bestMachines.begin(); 
+                                                        it!=bestMachines.end(); ++it)
+                                FreeMachine(*it);
+                        }
+                        
+                        bestJobToRun = i;
+                        shortestTime = tmpTime;
+                        bestMachines = tmpMachines;
+                        tmpMachines.clear();
+                    }  
+                }
+            }
+
+            if (shortestTime > 0) {
+                list.erase(bestJobToRun);
+                AllocResourcesWrapper((*bestJobToRun).jobId, bestMachines);
+            } else
+                break;
         }
     }
 };
