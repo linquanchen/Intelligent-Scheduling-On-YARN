@@ -20,14 +20,21 @@
 #include "YARNTetrischedService.h"
 #include <thrift/transport/TSocket.h>
 #include <thrift/transport/TTransportUtils.h>
-using namespace ::apache::thrift;
-using namespace ::apache::thrift::protocol;
-using namespace ::apache::thrift::transport;
-using namespace ::apache::thrift::server;
+
+using namespace::apache::thrift;
+using namespace::apache::thrift::protocol;
+using namespace::apache::thrift::transport;
+using namespace::apache::thrift::server;
 
 using boost::shared_ptr;
 
 using namespace alsched;
+
+#ifdef DEBUG
+# define dbg_printf(...) printf(__VA_ARGS__)
+#else
+# define dbg_printf(...)
+#endif
 
 class TetrischedServiceHandler : virtual public TetrischedServiceIf
 {
@@ -61,7 +68,7 @@ private:
     /** @brief The racks and machines array */
     std::vector<std::vector<MachineResource> > racks;
 
-    int maxMachinesPerRack = 0;
+    int maxMachinesPerRack;
 
     /** @brief Read config-mini config file for topology information
      *  @return A vector which size is the number of racks, each value is the 
@@ -264,9 +271,33 @@ private:
         } 
     }
 
+    void printRackInfo() {
+        dbg_printf("===================================\n");
+        dbg_printf("rack\t");
+        for(int i = 0; i < maxMachinesPerRack; i++)
+            dbg_printf("h%d\t", i);
+        dbg_printf("total\n");
+
+        for (unsigned int i = 0; i < racks.size(); i++) {
+            dbg_printf("r%d\t", i);
+            int num = 0;
+            for (unsigned j = 0; j < racks[i].size(); j++) {
+                int flag = racks[i][j].isFree ? 0 : 1;
+                dbg_printf("%d\t", flag);
+                num += (1-flag);
+            }
+            for (unsigned j = racks[i].size(); j < maxMachinesPerRack; j++)
+                dbg_printf("N\t");
+            dbg_printf("%d\n", num);
+        }
+        dbg_printf("===================================\n");
+    }
+
 public:
     /** @brief Initilize Tetri server, read rack config info */
     TetrischedServiceHandler() {
+        maxMachinesPerRack = 0;
+
         std::vector<int> rackInfo = ReadConfigFile();
 
         int count = 0;
