@@ -56,8 +56,13 @@ vim ~/.ssh/config
 Host *
     ForwardAgent yes
 
+vim ~/.ssh/id_dsa
+vim ~/.ssh/id_dsa.pub
+
 chmod 600 ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/config
+chmod 600 ~/.ssh/id_dsa
+chmod 600 ~/.ssh/id_dsa.pub
 
 Add your new user to the /etc/sudoers file
 chmod 660 /etc/sudoers
@@ -80,6 +85,15 @@ sudo ./rackstart.sh r2 4G 2
 sudo ./rackstart.sh r3 4G 2
 sudo ./rackstart.sh r4 4G 2
 
+
+====  for phase2    ====
+sudo ./rackstart.sh r0 16G 8 
+sudo ./rackstart.sh r1 8G 4
+sudo ./rackstart.sh r2 4G 2
+sudo ./rackstart.sh r3 4G 2 
+sudo ./rackstart.sh r4 4G 2 
+==== end for phase2 ====
+
 ssh root@10.10.1.10
 ssh root@10.10.[2-5].[10-15]
 
@@ -97,7 +111,7 @@ service nfs-kernel-server start
 The VM should already have the /etc/fstab entry to mount this share. Please make sure you’ve changed all occurrences of 10.10.1.10 in /etc/fstab to 10.NETID.1.10 during your VM configuration step and persist it.
 
 sudo su
-cp /proj/ClusterSched16/hadoop-2.2-advcc-v2.tar.gz /opt/projects/advcc/hadoop-2.2-advcc.tar.gz
+cp /proj/ClusterSched16/hadoop-2.2-advcc.tar.gz /opt/projects/advcc/hadoop-2.2-advcc.tar.gz
 cd /opt/projects/advcc
 tar -xzvf hadoop-2.2-advcc.tar.gz
 
@@ -120,6 +134,10 @@ gpurack/yarn-site.xml
 yarn-site.xml
 yarn-site.xml.CapacityScheduler
 yarn-site.xml.TetriScheduler
+
+===  for phase 2  ===
+r1h0,r1h1,r1h2,r1h3,r2h0,r2h1,r2h2,r2h3,r2h4,r2h5,r3h0,r3h1,r3h2,r3h3,r3h4,r3h5,r4h0,r4h1,r4h2,r4h3,r4h4,r4h5
+=== end for pahse 2 ===
 
 exit from VM, run on master node
 Untar /proj/ClusterSched16/exp-advcc.tgz  to $HADOOP_HOME
