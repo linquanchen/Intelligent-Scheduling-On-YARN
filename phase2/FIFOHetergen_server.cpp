@@ -112,65 +112,119 @@ private:
         return -1;
     }
 
-    int GetNextFreeGPUMachine() {
-        for (unsigned int i = 0; i < racks[GPU_RACK_INDEX].size(); i++) {
-            if (racks[GPU_RACK_INDEX][i].isFree) {
-                racks[GPU_RACK_INDEX][i].isFree = false;
-                return racks[GPU_RACK_INDEX][i].machineID;
-            }
-        }
-        return -1;
-    }
-
     std::vector<int> GetFreeMachines() {
-        std::vector<int> freeMachines;
+        std::vector<int> freeMachines; 
         for (unsigned int i = 0; i < racks.size(); i++) {
             int num = 0;
-            for (unsigned int j = 0; j < racks;[])
+            for (unsigned int j = 0; j < racks[i].size(); j++) {
+                if (racks[i][j].isFree) {
+                    num++;
+                }
+            }
+            freeMachines.push_back(num);
         }
+        return freeMachines;
     }
 
-    int GetRackForMPIJob(unsigned int k) {
-        for (unsigned int i = 1; i < racks.size(); i++) {
+    void AddJobsByRack(std::set<int> machines, int k, int index) {
+        for (unsigned int i = 0; k != 0 && i < racks[index].size(); i++) {
+            if (racks[index][i].isFree) {
+                machines.insert(racks[index][i].machineID);
+                k--;
+            }
+        }
+    }
+    
+    // All machines
+    int FindMinRack(std::vector<int> freeMachines) {
+        int min = MAX_MACHINES_PER_RACK;
+        int index = -1;
+        for (unsigned int i = 0; i < freeMachines.size(); i++) {
+            int num = freeMachines[i];
+            if (num != 0 && num <= min) {
+                min = num;
+                index = i;
+            }
+        }
+        return index;
+    }
+
+    bool GetMachinesForMPI(std::set<int> machines, int k) {
+        std::vector<int> freeMachines = GetFreeMachines();
+        
+        int min = MAX_MACHINES_PER_RACK;
+        int index = -1;
+        for (unsigned int i = 1; i < freeMachines.size(); i++) {
+            int num = freeMachines[i];
+            if (num >= k) {
+                if (num < min) {
+                    min = num;
+                    index = i;
+                }
+            }        
+        }
+        if (index != -1) {
+            AddJobsByRack(machines, k, index);
+            return true;
+        }
+        
+        if (freeMachines[0] >= k) {
+            AddJobsByRack(machines, k, 0);
+            return true;
+        }
+        
+        while (k != 0) {
+            index = FindMinRack(freeMachines);
+            if (freeMachines[index] <= k) {
+                AddJobsByRack(machines, freeMachines[index], index);
+                freeMachines[index] = 0;
+                k -= freeMachines[index];
+            }
+            else {
+                AddJobsByRack(machines, k, index);
+                k = 0;
+            }
+        }
+        return false;
+    }
+
+    bool GetMachinesForGPU(std::set<int> machines, int k) {
+        std::vector<int> freeMachines = GetFreeMachines();
+         
+        if (freeMachines[0] >= k) {
+            AddJobsByRack(machines, k, 0);
+            return true;
+        }
+        
+        int index;
+        while (k != 0) {
+            index = FindMinRack(freeMachines);
+            if (freeMachines[index] <= k) {
+                AddJobsByRack(machines, freeMachines[index], index);
+                freeMachines[index] = 0;
+                k -= freeMachines[index];
+            }
+            else {
+                AddJobsByRack(machines, k, index);
+                k = 0;
+            }
+        }
+        return false;
     } 
 
-    int GetMaxFreeMachineRack() {
-        int rackIndex = 0;
-        for (unsigned int i = 0; i < racks.size(); i++) {
-            int max = 0;
-            int currNum = 0;
-            for (unsigned int j = 0; j < racks[i].size(); j++) {
-                if (racks[i][j].isFree) {
-                    currNum++;  
-                }
-            }
-            if (currNum >= max) {
-                max = currNum;
-                rackIndex = i;
-            }
-        }
-        return rackIndex;
-        
+    bool GetMachines(std::set<int> machines, job_t::type jobType, int k) {
+        switch(jobType) {
+            case 0:
+                return GetMachinesForMPI(machines, k);
+                break;
+            case 2:   
+                return GetMachinesForGPU(machines, k);
+                break;
+            default:
+                return false;
+        } 
     }
-
-    int GetMinFreeMachineRack() {
-        int rackIndex = 0;
-        for (unsigned int i = 0; i < racks.size(); i++) {
-            int min = MAX_MACHINES_PER_RACK;
-            int currNum = 0;
-            for (unsigned int j = 0; j < racks[i].size(); j++) {
-                if (racks[i][j].isFree) {
-                    currNum++;  
-                }
-            }
-            if (currNum <= min) {
-                min = currNum;
-                rackIndex = i;
-            }
-        }
-        return rackIndex;
-    }
-
+    
     /** @brief Mark a machine as free */
     void FreeMachine(unsigned int id) {
         unsigned int rackID = 0;
@@ -234,27 +288,14 @@ public:
         // resources can be allocated to this jon directly
         if (queue.empty() && GetFreeMachinesNum() >= k) {
             std::set<int32_t> machines;
-            switch(jobType) {
-                
-            }
-            for (int i = 0; i < k; i++)
-                machines.insert(GetNextFreeMachine());
+            
+            GetMachines(machines, jobType, k);
+
             AllocResourcesWrapper(jobId, machines);
         } else {
             // not enough resources or there are some jobs ahead of this job, 
             // this job must enqueue
             queue.push_back(QueueJob(jobId, k, jobType));
-        }
-    }
-
-    void addGPUJob() {
-        
-    }
-
-    void addMPIJob(std::set<int32_t> machines, const int32_t k) {
-        int rackIndex = GetMaxFreeMachineRack();
-        for (unsigned int i = 0; i < racks[rackIndex].size(); i++) {
-            if ()
         }
     }
 
@@ -272,11 +313,12 @@ public:
         while (!queue.empty() && GetFreeMachinesNum() >= queue.front().k) {
             int jobId = queue.front().jobId;
             int k = queue.front().k;
+            job_t::type jobType = queue.front().jobType;
             queue.pop_front();
-
+            
             std::set<int32_t> machines;
-            for (int i = 0; i < k; i++)
-                machines.insert(GetNextFreeMachine());
+            GetMachines(machines, jobType, k);    
+            
             AllocResourcesWrapper(jobId, machines);
         }
     }

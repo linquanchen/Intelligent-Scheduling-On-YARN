@@ -35,9 +35,11 @@ private:
     struct QueueJob {
         JobID jobId;
         int32_t k;
-        QueueJob(JobID jobId, int32_t k) {
+        job_t::type jobType;
+        QueueJob(JobID jobId, int32_t k, job_t::type jobType) {
             this->jobId = jobId;
             this->k = k;
+            this->jobType = jobType;
         }
     };
 
@@ -119,6 +121,7 @@ private:
             machineIndex = rand() % machineNum;
             if (racks[rackIndex][machineIndex].isFree) {
                 racks[rackIndex][machineIndex].isFree = false;
+                printf("Allocate VM %d: r%dh%d\n", racks[rackIndex][machineIndex].machineID, rackIndex+1, machineIndex+1);
                 return racks[rackIndex][machineIndex].machineID;
             }
         }
@@ -187,14 +190,17 @@ public:
         // if there is enough resources and no job ahead of this job, then 
         // resources can be allocated to this jon directly
         if (queue.empty() && GetFreeMachinesNum() >= k) {
+            printf("Add job %d, jobType: %d, VM: %d\n", jobId, jobType, k);
             std::set<int32_t> machines;
             for (int i = 0; i < k; i++)
                 machines.insert(GetRandomFreeMachine());
             AllocResourcesWrapper(jobId, machines);
+            printf("Finish Add job %d.....\n", jobId);
         } else {
             // not enough resources or there are some jobs ahead of this job, 
             // this job must enqueue
-            queue.push_back(QueueJob(jobId, k));
+            printf("Push job %d to queue, jobType: %d, VM: %d\n", jobId, jobType, k);
+            queue.push_back(QueueJob(jobId, k, jobType));
         }
     }
 
@@ -205,19 +211,24 @@ public:
     {
         // first free machine resources
         for (std::set<int32_t>::iterator it=machines.begin(); 
-                                                    it!=machines.end(); ++it)
+                                                    it!=machines.end(); ++it){
             FreeMachine(*it);
+            printf("Free VM %d\n", *it);
+        }
 
         // check the head of the queue to see if there is enough resource
         while (!queue.empty() && GetFreeMachinesNum() >= queue.front().k) {
             int jobId = queue.front().jobId;
             int k = queue.front().k;
+            job_t::type jobType = queue.front().jobType;
             queue.pop_front();
-
+            
+            printf("Get Job from queue....Add job %d, jobType: %d, VM: %d\n", jobId, jobType, k);
             std::set<int32_t> machines;
             for (int i = 0; i < k; i++)
                 machines.insert(GetRandomFreeMachine());
             AllocResourcesWrapper(jobId, machines);
+            printf("Get Job from queue....Finish Add job %d.....\n", jobId);
         }
     }
 };
