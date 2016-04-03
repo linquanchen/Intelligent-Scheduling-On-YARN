@@ -30,7 +30,9 @@ using boost::shared_ptr;
 
 using namespace alsched;
 
-#ifdef DEBUG
+#define MY_DEBUG
+
+#ifdef MY_DEBUG
 # define dbg_printf(...) printf(__VA_ARGS__)
 #else
 # define dbg_printf(...)
@@ -134,11 +136,27 @@ private:
         racks[rackID][id].isFree = true;
     }
 
+    void AllocateBestMachines(std::set<int32_t> & machines) {
+        for (std::set<int32_t>::iterator it=machines.begin(); 
+                                                    it!=machines.end(); ++it) {
+            unsigned int id = *it;
+            unsigned int rackID = 0;
+            while (id >= racks[rackID].size()) {
+                id -= racks[rackID].size();
+                rackID++;
+            }
+            racks[rackID][id].isFree = false;
+        }
+    }
+
     /** @brief Wrapper for allocate resources
      *  @param jobId The id of the job to allocate resources
      *  @param machines The set of machines that will be allocated to the job
      */
     void AllocResourcesWrapper(int jobId, std::set<int32_t> & machines) {
+        dbg_printf("Allocate %d machines for %d\n", (int)machines.size(), jobId);
+        printRackInfo();
+
         int yarnport = 9090;
         shared_ptr<TTransport> socket(new TSocket("localhost", yarnport));
         shared_ptr<TTransport> transport(new TBufferedTransport(socket));
@@ -150,7 +168,7 @@ private:
             client.AllocResources(jobId, machines);
             transport->close();
         } catch (TException& tx) {
-            printf("ERROR calling YARN : %s\n", tx.what());
+            dbg_printf("ERROR calling YARN : %s\n", tx.what());
         }
     }
 
@@ -173,11 +191,10 @@ private:
             if (racks[index][i].isFree) {
                 machines.insert(racks[index][i].machineID);
                 k--;
-                racks[index][i].isFree = false;
             }
         }
         if (k != 0) {
-            printf("Something wrong with AddJobsByRack()");
+            dbg_printf("Something wrong with AddJobsByRack()\n");
         }
     }
     
@@ -265,14 +282,14 @@ private:
             case job_t::JOB_GPU:   
                 return GetMachinesForGPU(machines, k);
             default:{
-                printf("Unknown job type:%d", jobType);
+                dbg_printf("Unknown job type:%d\n", jobType);
                 return false;
             }
         } 
     }
 
     void printRackInfo() {
-        dbg_printf("===================================\n");
+        dbg_printf("=============================================\n");
         dbg_printf("rack\t");
         for(int i = 0; i < maxMachinesPerRack; i++)
             dbg_printf("h%d\t", i);
@@ -286,11 +303,21 @@ private:
                 dbg_printf("%d\t", flag);
                 num += (1-flag);
             }
-            for (unsigned j = racks[i].size(); j < maxMachinesPerRack; j++)
+            for (unsigned j = racks[i].size(); j < (unsigned)maxMachinesPerRack; j++)
                 dbg_printf("N\t");
             dbg_printf("%d\n", num);
         }
-        dbg_printf("===================================\n");
+        dbg_printf("=============================================\n");
+    }
+
+    void printJobInfo() {
+        dbg_printf("=============================================\n");
+        dbg_printf("Id\tType\tk\tfast\t\tslow\n");
+        for (std::list<ListJob>::iterator i=list.begin(); i != list.end(); ++i){
+            dbg_printf("%d\t%d\t%d\t%f\t%f\n", (*i).jobId, (*i).jobType, 
+                                    (*i).k, (*i).duration, (*i).slowDuration);
+        }
+        dbg_printf("=============================================\n");
     }
 
 public:
@@ -322,17 +349,20 @@ public:
                 const int32_t priority, const double duration, 
                 const double slowDuration)
     {   
+        dbg_printf("a new job comming: id:%d, type:%d, k:%d\n", jobId, jobType, k);
+
         // if there is enough resources and no job ahead of this job, then 
         // resources can be allocated to this job directly
         if (list.empty() && GetFreeMachinesNum() >= k) {
             std::set<int32_t> machines;
             GetBestMachines(jobType, k, machines);
+            AllocateBestMachines(machines);
             AllocResourcesWrapper(jobId, machines);
         } else {
             // not enough resources or there are some jobs ahead of this job, 
             // this job must push to list
             if (duration <= 0 || slowDuration <= 0) {
-                printf("Parameter check failed, duration should be positive");
+                dbg_printf("Parameter check failed, duration should be positive\n");
             }
 
             list.push_back(ListJob(jobId, jobType, k, duration, slowDuration));
@@ -343,11 +373,17 @@ public:
      *  @param machines The set of machines that will be freed
      */
     void FreeResources(const std::set<int32_t> & machines)
-    {
+    {   
+        dbg_printf("free %d machines\n", (int)machines.size());
+
         // first free machine resources
         for (std::set<int32_t>::iterator it=machines.begin(); 
                                                     it!=machines.end(); ++it)
             FreeMachine(*it);
+       
+        printRackInfo();
+
+        printJobInfo();
 
         while (true) {
             std::list<ListJob>::iterator bestJobToRun;
@@ -355,6 +391,7 @@ public:
             std::set<int32_t> bestMachines, tmpMachines;
 
             int freeMachineNum = GetFreeMachinesNum();
+
             for (std::list<ListJob>::iterator i=list.begin(); i != list.end(); ++i){
                 if (freeMachineNum >= (*i).k) {
                     // try to find a optimal configuration 
@@ -364,13 +401,6 @@ public:
 
                     // update schedule solution
                     if (shortestTime < 0 || shortestTime > tmpTime) {
-                        // free machine resources of the last schedule solution
-                        if (shortestTime > 0) {
-                            for (std::set<int32_t>::iterator it=bestMachines.begin(); 
-                                                        it!=bestMachines.end(); ++it)
-                                FreeMachine(*it);
-                        }
-                        
                         bestJobToRun = i;
                         shortestTime = tmpTime;
                         bestMachines = tmpMachines;
@@ -380,7 +410,9 @@ public:
             }
 
             if (shortestTime > 0) {
+                dbg_printf("Choose job %d to run\n", (*bestJobToRun).jobId);
                 list.erase(bestJobToRun);
+                AllocateBestMachines(bestMachines);
                 AllocResourcesWrapper((*bestJobToRun).jobId, bestMachines);
             } else
                 break;
