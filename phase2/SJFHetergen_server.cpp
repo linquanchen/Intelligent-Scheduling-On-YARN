@@ -32,12 +32,17 @@ using namespace alsched;
 class TetrischedServiceHandler : virtual public TetrischedServiceIf
 {
 private:
-    struct QueueJob {
+    struct ListJob {
         JobID jobId;
+        job_t::type jobType;
         int32_t k;
-        QueueJob(JobID jobId, int32_t k) {
+        double duration, slowDuration;
+        ListJob(JobID jobId, job_t::type jobType, int32_t k, double duration, double slowDuration) {
             this->jobId = jobId;
+            this->jobType = jobType;
             this->k = k;
+            this->duration = duration;
+            this->slowDuration = slowDuration;
         }
     };
 
@@ -50,8 +55,8 @@ private:
         }
     };
 
-    /** @brief The queue for job that waiting for allocating resources */
-    std::deque<QueueJob> queue;
+    /** @brief The list for job that waiting for allocating resources */
+    std::list<ListJob> list;
 
     /** @brief The racks and machines array */
     std::vector<std::vector<MachineResource> > racks;
@@ -137,6 +142,10 @@ private:
         }
     }
 
+    bool GetBestMachines(job_t::type jobType, int k, std::set<int32_t> &machines) {
+
+    }
+
 public:
     /** @brief Initilize Tetri server, read rack config info */
     TetrischedServiceHandler() {
@@ -157,26 +166,27 @@ public:
      *  @param jobType The type of the job
      *  @param k The number of machines that the job is asking
      *  @param priority The priority of the job
-     *  @param duration The estimated time of the job if all containers are
-     *                  running on the same rack
-     *  @param slowDuration The estimated time of the job if all containers are
-     *                      running on different racks
+     *  @param duration The estimated time of the job if on job's preferred allocation
+     *  @param slowDuration The estimated time of the job if not on job's preferred allocation
      */
     void AddJob(const JobID jobId, const job_t::type jobType, const int32_t k, 
                 const int32_t priority, const double duration, 
                 const double slowDuration)
     {   
         // if there is enough resources and no job ahead of this job, then 
-        // resources can be allocated to this jon directly
-        if (queue.empty() && GetFreeMachinesNum() >= k) {
+        // resources can be allocated to this job directly
+        if (list.empty() && GetFreeMachinesNum() >= k) {
             std::set<int32_t> machines;
-            for (int i = 0; i < k; i++)
-                machines.insert(GetNextFreeMachine());
+            GetBestMachines(jobType, k, machines);
             AllocResourcesWrapper(jobId, machines);
         } else {
             // not enough resources or there are some jobs ahead of this job, 
-            // this job must enqueue
-            queue.push_back(QueueJob(jobId, k));
+            // this job must push to list
+            if (duration <= 0 || slowDuration <= 0) {
+                printf("Parameter check failed, duration should be positive");
+            }
+
+            list.push_back(ListJob(jobId, jobType, k, duration, slowDuration));
         }
     }
 
@@ -190,16 +200,39 @@ public:
                                                     it!=machines.end(); ++it)
             FreeMachine(*it);
 
-        // check the head of the queue to see if there is enough resource
-        while (!queue.empty() && GetFreeMachinesNum() >= queue.front().k) {
-            int jobId = queue.front().jobId;
-            int k = queue.front().k;
-            queue.pop_front();
 
-            std::set<int32_t> machines;
-            for (int i = 0; i < k; i++)
-                machines.insert(GetNextFreeMachine());
-            AllocResourcesWrapper(jobId, machines);
+        std::list<ListJob>::iterator bestJobToRun;
+        double shortestTime = -1, tmpTime;
+        std::set<int32_t> bestMachines, tmpMachines;
+
+        int freeMachineNum = GetFreeMachinesNum();
+        for (std::list<ListJob>::iterator i=list.begin(); i != list.end(); ++i){
+            if (freeMachineNum >= (*i).k) {
+                // try to find a optimal configuration 
+                bool isBest = GetBestMachines((*i).jobType, (*i).k, tmpMachines);
+                
+                tmpTime = isBest ? (*i).duration : (*i).slowDuration;
+
+                // update schedule solution
+                if (shortestTime < 0 || shortestTime > tmpTime) {
+                    // free machine resources of the last schedule solution
+                    if (shortestTime > 0) {
+                        for (std::set<int32_t>::iterator it=bestMachines.begin(); 
+                                                    it!=bestMachines.end(); ++it)
+                            FreeMachine(*it);
+                    }
+                    
+                    bestJobToRun = i;
+                    shortestTime = tmpTime;
+                    bestMachines = tmpMachines;
+                    tmpMachines.clear();
+                }  
+            }
+        }
+
+        if (shortestTime > 0) {
+            list.erase(bestJobToRun);
+            AllocResourcesWrapper((*bestJobToRun).jobId, bestMachines);
         }
     }
 };
