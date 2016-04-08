@@ -69,6 +69,8 @@ private:
     /** @brief The racks and machines array */
     std::vector<std::vector<MachineResource> > racks;
 
+    std::set<int32_t> **sameRackVMs;
+
     /** @brief Read config-mini config file for topology information
      *  @return A vector which size is the number of racks, each value is the 
      *          number of machines on each rack 
@@ -311,6 +313,49 @@ private:
         printRackInfo();
     }
 
+    void FreeResource(int32_t machine) {
+        FreeMachine(machine);
+
+        printRackInfo();
+
+        if (sameRackVMs[machine] != NULL) {
+            std::set<int32_t>* sameRackVM = sameRackVMs[machine];
+            sameRackVMs[machine] = NULL;
+
+            (*sameRackVM).erase((*sameRackVM).find(machine));
+            if (!(*sameRackVM).empty())
+                return;
+
+            delete sameRackVM;
+        }
+
+        // check the head of the queue to see if there is enough resource
+        while (!queue.empty() && GetFreeMachinesNum() >= queue.front().k) {
+            int jobId = queue.front().jobId;
+            int k = queue.front().k;
+            job_t::type jobType = queue.front().jobType;
+            queue.pop_front();
+
+            std::set<int32_t> machines;
+            
+            dbg_printf("Add job %d, jobType: %d, VM: %d\n", jobId, jobType, k); 
+            bool isPrefered = GetMachines(machines, jobType, k);
+            if (isPrefered && jobType == job_t::JOB_MPI) {
+
+                std::set<int32_t> *sameRackVM = new std::set<int32_t>(machines);
+
+                for (std::set<int32_t>::iterator it=machines.begin(); 
+                        it!=machines.end(); ++it) {
+                    sameRackVMs[*it] = sameRackVM;
+                }        
+            }
+
+            AllocResourcesWrapper(jobId, machines);
+            dbg_printf("Finish Add job %d.....\n", jobId);
+        }
+    }
+
+
     /** @brief Wrapper for allocate resources
      *  @param jobId The id of the job to allocate resources
      *  @param machines The set of machines that will be allocated to the job
@@ -346,6 +391,11 @@ public:
             racks.push_back(rack);
             count += rackInfo[i];
         }
+        
+        sameRackVMs = new std::set<int32_t>*[count];
+        sameRackVMs = new std::set<int32_t>*[count];
+        for (int i = 0; i < count; i++)
+            sameRackVMs[i] = NULL;
     }
 
     /** @brief A job is added to scheduler, waiting for allocating resources
@@ -367,9 +417,17 @@ public:
         if (queue.empty() && GetFreeMachinesNum() >= k) {
             std::set<int32_t> machines;
             dbg_printf("Add job %d, jobType: %d, VM: %d\n", jobId, jobType, k); 
-            GetMachines(machines, jobType, k);
+            bool isPrefered = GetMachines(machines, jobType, k);
+            if (isPrefered && jobType == job_t::JOB_MPI) {
+                std::set<int32_t> *sameRackVM = new std::set<int32_t>(machines);
+
+                for (std::set<int32_t>::iterator it=machines.begin(); 
+                        it!=machines.end(); ++it) {
+                    sameRackVMs[*it] = sameRackVM;
+                }                  
+            }
             AllocResourcesWrapper(jobId, machines);
-            printf("Finish Add job %d.....\n", jobId);
+            dbg_printf("Finish Add job %d.....\n", jobId);
         } else {
             // not enough resources or there are some jobs ahead of this job, 
             // this job must enqueue
@@ -386,23 +444,7 @@ public:
         // first free machine resources
         for (std::set<int32_t>::iterator it=machines.begin(); 
                                                     it!=machines.end(); ++it){
-            FreeMachine(*it);
-            dbg_printf("Free VM %d...........\n", *it);
-        }
-
-        // check the head of the queue to see if there is enough resource
-        while (!queue.empty() && GetFreeMachinesNum() >= queue.front().k) {
-            int jobId = queue.front().jobId;
-            int k = queue.front().k;
-            job_t::type jobType = queue.front().jobType;
-            queue.pop_front();
-
-            std::set<int32_t> machines;
-            
-            dbg_printf("Add job %d, jobType: %d, VM: %d\n", jobId, jobType, k); 
-            GetMachines(machines, jobType, k);    
-            AllocResourcesWrapper(jobId, machines);
-            dbg_printf("Finish Add job %d.....\n", jobId);
+            FreeResource(*it);   
         }
     }
 };
