@@ -70,6 +70,8 @@ private:
     /** @brief The racks and machines array */
     std::vector<std::vector<MachineResource> > racks;
 
+    std::set<int> sameRackVMs;
+
     int maxMachinesPerRack;
 
     /** @brief Read config-mini config file for topology information
@@ -228,11 +230,19 @@ private:
         }
         if (index != -1) {
             AddJobsByRack(machines, k, index);
+            for (std::set<int32_t>::iterator it=machines.begin(); 
+                    it!=machines.end(); ++it) {
+                sameRackVMs.insert(it); 
+            } 
             return true;
         }
         
         if (freeMachines[0] >= k) {
             AddJobsByRack(machines, k, 0);
+            for (std::set<int32_t>::iterator it=machines.begin(); 
+                    it!=machines.end(); ++it) {
+                sameRackVMs.insert(it); 
+            } 
             return true;
         }
         
