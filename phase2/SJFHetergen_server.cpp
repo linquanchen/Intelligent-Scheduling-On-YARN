@@ -70,7 +70,7 @@ private:
     /** @brief The racks and machines array */
     std::vector<std::vector<MachineResource> > racks;
 
-    std::set<int> sameRackVMs;
+    std::set<int32_t> **sameRackVMs;
 
     int maxMachinesPerRack;
 
@@ -229,20 +229,12 @@ private:
             }        
         }
         if (index != -1) {
-            AddJobsByRack(machines, k, index);
-            for (std::set<int32_t>::iterator it=machines.begin(); 
-                    it!=machines.end(); ++it) {
-                sameRackVMs.insert(it); 
-            } 
+            AddJobsByRack(machines, k, index);    
             return true;
         }
         
         if (freeMachines[0] >= k) {
             AddJobsByRack(machines, k, 0);
-            for (std::set<int32_t>::iterator it=machines.begin(); 
-                    it!=machines.end(); ++it) {
-                sameRackVMs.insert(it); 
-            } 
             return true;
         }
         
@@ -330,6 +322,77 @@ private:
         dbg_printf("=============================================\n");
     }
 
+    void FreeResource(int32_t machine) {
+        FreeMachine(machine);
+
+        printRackInfo();
+
+        printJobInfo();
+
+        if (sameRackVMs[machine] != NULL) {
+            std::set<int32_t>* sameRackVM = sameRackVMs[machine];
+            sameRackVMs[machine] = NULL;
+
+            printf("my id:%d\n", machine);
+            printf("my rack VMs:");
+            for (std::set<int32_t>::iterator it=(*sameRackVM).begin(); 
+                    it!=(*sameRackVM).end(); ++it) {
+                printf("%d ", *it);
+            }
+            printf("\n");
+
+            (*sameRackVM).erase((*sameRackVM).find(machine));
+            if (!(*sameRackVM).empty())
+                return;
+
+            delete sameRackVM;
+        }
+
+        while (true) {
+            std::list<ListJob>::iterator bestJobToRun;
+            double shortestTime = -1, tmpTime;
+            std::set<int32_t> bestMachines, tmpMachines;
+            bool isBestisPrefered;
+
+            int freeMachineNum = GetFreeMachinesNum();
+
+            for (std::list<ListJob>::iterator i=list.begin(); i != list.end(); ++i){
+                if (freeMachineNum >= (*i).k) {
+                    // try to find a optimal configuration 
+                    bool isPrefered = GetBestMachines((*i).jobType, (*i).k, tmpMachines);
+                    
+                    tmpTime = isPrefered ? (*i).duration : (*i).slowDuration;
+
+                    // update schedule solution
+                    if (shortestTime < 0 || shortestTime > tmpTime) {
+                        bestJobToRun = i;
+                        shortestTime = tmpTime;
+                        bestMachines = tmpMachines;
+                        isBestisPrefered = isPrefered;
+                        tmpMachines.clear();
+                    }  
+                }
+            }
+
+            if (shortestTime > 0) {
+                dbg_printf("Choose job %d to run\n", (*bestJobToRun).jobId);
+                if (isBestisPrefered && (*bestJobToRun).jobType == job_t::JOB_MPI) {
+
+                    std::set<int32_t> *sameRackVM = new std::set<int32_t>(bestMachines);
+
+                    for (std::set<int32_t>::iterator it=bestMachines.begin(); 
+                            it!=bestMachines.end(); ++it) {
+                        sameRackVMs[*it] = sameRackVM;
+                    }        
+                }
+                AllocateBestMachines(bestMachines);
+                AllocResourcesWrapper((*bestJobToRun).jobId, bestMachines);
+                list.erase(bestJobToRun);
+            } else
+                break;
+        }
+    }
+
 public:
     /** @brief Initilize Tetri server, read rack config info */
     TetrischedServiceHandler() {
@@ -345,6 +408,10 @@ public:
             racks.push_back(rack);
             count += rackInfo[i];
         }
+
+        sameRackVMs = new std::set<int32_t>*[count];
+        for (int i = 0; i < count; i++)
+            sameRackVMs[i] = NULL;
     }
 
     /** @brief A job is added to scheduler, waiting for allocating resources
@@ -365,7 +432,17 @@ public:
         // resources can be allocated to this job directly
         if (list.empty() && GetFreeMachinesNum() >= k) {
             std::set<int32_t> machines;
-            GetBestMachines(jobType, k, machines);
+            bool isPrefered = GetBestMachines(jobType, k, machines);
+
+            if (isPrefered && jobType == job_t::JOB_MPI) {
+                std::set<int32_t> *sameRackVM = new std::set<int32_t>(machines);
+
+                for (std::set<int32_t>::iterator it=machines.begin(); 
+                        it!=machines.end(); ++it) {
+                    sameRackVMs[*it] = sameRackVM;
+                }        
+            }
+
             AllocateBestMachines(machines);
             AllocResourcesWrapper(jobId, machines);
         } else {
@@ -389,45 +466,9 @@ public:
         // first free machine resources
         for (std::set<int32_t>::iterator it=machines.begin(); 
                                                     it!=machines.end(); ++it)
-            FreeMachine(*it);
-       
-        printRackInfo();
-
-        printJobInfo();
-
-        while (true) {
-            std::list<ListJob>::iterator bestJobToRun;
-            double shortestTime = -1, tmpTime;
-            std::set<int32_t> bestMachines, tmpMachines;
-
-            int freeMachineNum = GetFreeMachinesNum();
-
-            for (std::list<ListJob>::iterator i=list.begin(); i != list.end(); ++i){
-                if (freeMachineNum >= (*i).k) {
-                    // try to find a optimal configuration 
-                    bool isBest = GetBestMachines((*i).jobType, (*i).k, tmpMachines);
-                    
-                    tmpTime = isBest ? (*i).duration : (*i).slowDuration;
-
-                    // update schedule solution
-                    if (shortestTime < 0 || shortestTime > tmpTime) {
-                        bestJobToRun = i;
-                        shortestTime = tmpTime;
-                        bestMachines = tmpMachines;
-                        tmpMachines.clear();
-                    }  
-                }
-            }
-
-            if (shortestTime > 0) {
-                dbg_printf("Choose job %d to run\n", (*bestJobToRun).jobId);
-                list.erase(bestJobToRun);
-                AllocateBestMachines(bestMachines);
-                AllocResourcesWrapper((*bestJobToRun).jobId, bestMachines);
-            } else
-                break;
-        }
+            FreeResource(*it);
     }
+
 };
 
 int main(int argc, char **argv)
