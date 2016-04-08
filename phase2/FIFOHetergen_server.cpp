@@ -69,6 +69,11 @@ private:
     /** @brief The racks and machines array */
     std::vector<std::vector<MachineResource> > racks;
 
+    /** @brief This array is used to record that which machines are on the
+               same rack and allocated for the same job. The index of array
+               is machine id. The value of each element is a pointer that 
+               points to a set which includes all machines that are on the
+               same rack and allocated for the same job with this machine.*/
     std::set<int32_t> **sameRackVMs;
 
     /** @brief Read config-mini config file for topology information
@@ -280,6 +285,7 @@ private:
         } 
     }
 
+    /** @brief print current resources allocation information */
     void printRackInfo() {
         dbg_printf("==========================================================\n");
         dbg_printf("rack\t");
@@ -313,16 +319,24 @@ private:
         printRackInfo();
     }
 
+    /** @brief Free one machine and try to allocate resources for new jobs
+     *  @param machine The machine that will be freed
+     */
     void FreeResource(int32_t machine) {
         FreeMachine(machine);
 
         printRackInfo();
 
+        // check if this machine belongs to a set of machines that were 
+        // on the same rack and allocated to the same job
         if (sameRackVMs[machine] != NULL) {
             std::set<int32_t>* sameRackVM = sameRackVMs[machine];
             sameRackVMs[machine] = NULL;
 
             (*sameRackVM).erase((*sameRackVM).find(machine));
+            // if there are some other machines that were on the same rack and 
+            // allocated to the same job, do not allocate this machine until
+            // all machines are freed 
             if (!(*sameRackVM).empty())
                 return;
 
@@ -340,6 +354,8 @@ private:
             
             dbg_printf("Add job %d, jobType: %d, VM: %d\n", jobId, jobType, k); 
             bool isPrefered = GetMachines(machines, jobType, k);
+            // if this job is a MPI job and all allocated resources are on 
+            // the same rack, record this information
             if (isPrefered && jobType == job_t::JOB_MPI) {
 
                 std::set<int32_t> *sameRackVM = new std::set<int32_t>(machines);
@@ -418,6 +434,8 @@ public:
             std::set<int32_t> machines;
             dbg_printf("Add job %d, jobType: %d, VM: %d\n", jobId, jobType, k); 
             bool isPrefered = GetMachines(machines, jobType, k);
+            // if this job is a MPI job and all allocated resources are on 
+            // the same rack, record this information
             if (isPrefered && jobType == job_t::JOB_MPI) {
                 std::set<int32_t> *sameRackVM = new std::set<int32_t>(machines);
 
