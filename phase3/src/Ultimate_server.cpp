@@ -23,6 +23,7 @@
 #include <set>
 #include "inter.h"
 #include <queue>
+#include <stdio.h>
 
 /*
 #include "YARNTetrischedService.h"
@@ -182,8 +183,8 @@ private:
     }
 
     void Schedule() {
+        dbg_printf("before schedule\n");
         printRackInfo();
-
         printJobInfo();
         
         Cluster* cluster = new Cluster(racks, pendingJobList, runningJobList, maxMachinesPerRack);
@@ -215,6 +216,10 @@ private:
 
         cluster->Clear();
         delete cluster;
+
+        dbg_printf("after schedule\n");
+        printRackInfo();
+        printJobInfo();
     }
 
 public:
@@ -318,7 +323,11 @@ int main(int argc, char **argv)
     server.serve();
     return 0;
     */
-    
+
+    TetrischedServiceHandler tetrischedServiceHandler;
+
+    tetrischedServiceHandler.AddJob(0, job_t::JOB_MPI, 4, 0, 10, 20);
+
 
 }
 

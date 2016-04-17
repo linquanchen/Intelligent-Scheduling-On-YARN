@@ -1,4 +1,5 @@
 #include "inter.h"
+#include <stdio.h>
 
     
 Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks, 

@@ -8,6 +8,8 @@
 #include <stdint.h>
 #include <ctime>
 
+#define MY_DEBUG
+
 #ifdef MY_DEBUG
 # define dbg_printf(...) printf(__VA_ARGS__)
 #else
