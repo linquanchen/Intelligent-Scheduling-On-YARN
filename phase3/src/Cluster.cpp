@@ -13,8 +13,8 @@ Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks,
         MyJob* newJob = new MyJob(*i);
         this->pendingJobList.push_back(newJob);
     }
-
-    std::priority_queue<MyJob*> tmp = runningJobList;
+    
+    std::priority_queue<MyJob*, vector<MyJob*>, JobComparison> tmp = runningJobList;
     while(!tmp.empty()) {
         MyJob* tmpJob = tmp.pop();
 
@@ -320,19 +320,22 @@ std::vector<std::vector<int> > Cluster::Schedule() {
 }
 
 double Cluster::CalAddedUtility(delayJobNum) {
-    time_t lastTime = 0;
+    time_t lastTime = time();
     double resultUtility = 0, penaltyUtility = 0;
     while (!RunningJobList.empty()) {
         MyJob* finishedJob = RunningJobList.pop();
         FreeMachinesByJob(finishedJob);
         
-        penaltyUtility -= delayJobNum * (finishedJob->GetRunningTime() - lastTime);
-        lastTime = finishedJob->GetRunningTime();
+        double elapsedTime = difftime(finishedJob->GetFinishedTime(), lastTime);
+        if (elapsedTime > 0) {
+            penaltyUtility -= delayJobNum * elapsedTime;
+            lastTime = finishedJob->GetFinishedTime();
+        }
 
 
         double addedUtility = 0;
         std::vector<MyJob*> tmpRunningJobs;
-        // calculate addedUtility when delay i jobs to later time to run
+        // calculate addedUtility when delay k jobs to later time to run
         for (int k = 0; k < delayJobNum; k++) {
             std::list<MyJob*>::iterator bestJobIter;
             double maxUtility = -1, tmpUtility;

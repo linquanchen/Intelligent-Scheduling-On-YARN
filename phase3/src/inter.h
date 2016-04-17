@@ -17,6 +17,7 @@ public:
     void FreeMachine(int machineID);
     bool IsFinished();
     double CalUtility(bool isPrefered);
+    time_t GetFinishedTime();
 };
 
 class MyMachine{
