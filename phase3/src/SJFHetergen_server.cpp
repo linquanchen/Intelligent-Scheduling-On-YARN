@@ -296,7 +296,7 @@ public:
 
         pendingJobList.push_back(new MyJob(jobId, jobType, k, duration, slowDuration));
         
-        Schedulel();
+        Schedule();
     }
 
     /** @brief Free some machine resources
@@ -309,7 +309,7 @@ public:
         // free machine resource one by one
         for (std::set<int32_t>::iterator it=machines.begin(); 
                                                     it!=machines.end(); ++it) {
-            GetMachineByID(machineID)->FreeMachine();
+            GetMachineByID(machineID)->Free();
         }
 
         Schedule();

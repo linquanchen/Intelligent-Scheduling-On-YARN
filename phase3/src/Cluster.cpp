@@ -1,8 +1,14 @@
 #include "inter.h"
 
     
-Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks, int maxMachinesPerRack) {
+Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks, 
+            std::list<MyJob*> & pendingJobList,
+            std::list<MyJob*> & runningJobList,
+            int maxMachinesPerRack) {
+
     this->racks = racks;
+    
+
     this->maxMachinesPerRack = maxMachinesPerRack;
 }
 

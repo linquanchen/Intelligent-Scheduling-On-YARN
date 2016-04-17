@@ -103,6 +103,6 @@ private:
     bool GetBestMachines(job_t::type jobType, int k, 
                                                 std::set<int32_t> &machines);
 
-    // for each vector, 0 is jobID, 1...n is machine ID
+    // for each vector, 0 is jobID, 1 indicates if is prefered, 2...n is machine ID
     std::vector<std::vector<int> > Schedule();
 };
