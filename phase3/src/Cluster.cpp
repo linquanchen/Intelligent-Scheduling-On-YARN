@@ -384,6 +384,8 @@ double Cluster::CalAddedUtility(int delayJobNum) {
             pendingJobList.push_back(*it);
         }
     }
+
+    return resultUtility;
 }
 
 std::vector<std::vector<int> > constructResult(std::vector<MyJob*> & jobs) {
