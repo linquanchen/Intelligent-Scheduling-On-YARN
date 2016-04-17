@@ -16,7 +16,7 @@ public:
     void Start(std::set<int32_t> & machines, bool isPrefered);
     void FreeMachine(int machineID);
     bool IsFinished();
-    double CalUtility(bool isPrefered);
+    double CalUtility(time_t curTime, bool isPrefered);
     time_t GetFinishedTime();
 };
 

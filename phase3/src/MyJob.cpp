@@ -41,8 +41,9 @@ bool MyJob::IsFinished() {
         return false;
 }
 
-double MyJob::CalUtility(bool isPrefered) {
-    double waitingTime = difftime(time(), arriveTime);
+double MyJob::CalUtility(time_t curTime, bool isPrefered) {
+    double waitingTime = difftime(curTime, arriveTime);
+    waitingTime = waitingTime < 0 ? 0 : curTime;
     double runningTime = isPrefered ? duration : slowDuration;
     double result = 1200 - waitingTime - runningTime;
     return result < 0 ? 0 : result;

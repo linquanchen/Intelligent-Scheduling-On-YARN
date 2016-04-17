@@ -255,7 +255,7 @@ std::vector<std::vector<int> > Cluster::Schedule() {
                 bool isPrefered = 
                         GetBestMachines((*i)->jobType, (*i)->k, tmpMachines);
                 
-                tmpUtility = (*i)->CalUtility();
+                tmpUtility = (*i)->CalUtility(time(), isPrefered);
 
                 // if find a job with larger utility, update schedule solution
                 if (maxUtility < tmpUtility) {
@@ -320,16 +320,16 @@ std::vector<std::vector<int> > Cluster::Schedule() {
 }
 
 double Cluster::CalAddedUtility(delayJobNum) {
-    time_t lastTime = time();
+    time_t curTime = time();
     double resultUtility = 0, penaltyUtility = 0;
     while (!RunningJobList.empty()) {
         MyJob* finishedJob = RunningJobList.pop();
         FreeMachinesByJob(finishedJob);
         
-        double elapsedTime = difftime(finishedJob->GetFinishedTime(), lastTime);
+        double elapsedTime = difftime(finishedJob->GetFinishedTime(), curTime);
         if (elapsedTime > 0) {
             penaltyUtility -= delayJobNum * elapsedTime;
-            lastTime = finishedJob->GetFinishedTime();
+            curTime = finishedJob->GetFinishedTime();
         }
 
 
@@ -351,7 +351,7 @@ double Cluster::CalAddedUtility(delayJobNum) {
                     bool isPrefered = 
                             GetBestMachines((*i)->jobType, (*i)->k, tmpMachines);
                     
-                    tmpUtility = (*i)->CalUtility();
+                    tmpUtility = (*i)->CalUtility(curTime, isPrefered);
 
                     // if find a job with larger utility, update schedule solution
                     if (maxUtility < tmpUtility) {
