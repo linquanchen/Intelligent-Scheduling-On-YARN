@@ -12,7 +12,7 @@ public:
 
     MyJob(JobID jobId, job_t::type jobType, int32_t k, double duration, 
                 double slowDuration, double arriveTime);
-    void Start(std::set<int32_t> & machines);
+    void Start(std::set<int32_t> & machines, bool isPrefered);
     void FreeMachine(int machineID);
     bool IsFinished();
 };
@@ -31,13 +31,22 @@ public:
 
 class Cluster {
 private:
+    /** @brief The list for job that waiting for allocating resources */
+    std::list<MyJob*> pendingJobList;
+
+    /** @brief The list for job that running */
+    std::list<MyJob*> runningJobList;
+
     /** @brief The racks and machines array */
     std::vector<std::vector<MyMachine> > racks;
 
     /** @brief The max number of machines on the same rack */
     int maxMachinesPerRack;
     
-    Cluster(std::vector<std::vector<MyMachine> > & racks, int maxMachinesPerRack);
+    Cluster(std::vector<std::vector<MyMachine> > & racks, 
+            std::list<MyJob*> & pendingJobList,
+            std::list<MyJob*> & runningJobList,
+            int maxMachinesPerRack);
 
     MyMachine* GetMachineByID(unsigned int id);
 
@@ -93,4 +102,7 @@ private:
      */
     bool GetBestMachines(job_t::type jobType, int k, 
                                                 std::set<int32_t> &machines);
+
+    // for each vector, 0 is jobID, 1...n is machine ID
+    std::vector<std::vector<int> > Schedule();
 };
