@@ -320,14 +320,17 @@ std::vector<std::vector<int> > Cluster::Schedule() {
 }
 
 double Cluster::CalAddedUtility(delayJobNum) {
-    time_t lastTime = 0;
+    time_t lastTime = time();
     double resultUtility = 0, penaltyUtility = 0;
     while (!RunningJobList.empty()) {
         MyJob* finishedJob = RunningJobList.pop();
         FreeMachinesByJob(finishedJob);
         
-        penaltyUtility -= delayJobNum * (finishedJob->GetRunningTime() - lastTime);
-        lastTime = finishedJob->GetRunningTime();
+        double elapsedTime = difftime(finishedJob->GetFinishedTime(), lastTime);
+        if (elapsedTime > 0) {
+            penaltyUtility -= delayJobNum * elapsedTime;
+            lastTime = finishedJob->GetFinishedTime();
+        }
 
 
         double addedUtility = 0;
