@@ -6,19 +6,25 @@
  *
  *  @bug No known bugs.
  */
+/*
 #include "TetrischedService.h"
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/server/TSimpleServer.h>
 #include <thrift/transport/TServerSocket.h>
 #include <thrift/transport/TBufferTransports.h>
+*/
 #include <deque>
 #include <vector>
 #include <fstream>
 #include <string>
 #include "rapidjson/document.h"
 #include <ctime>
+#include <list>
+#include <set>
+#include "inter.h"
+#include <queue>
 
-
+/*
 #include "YARNTetrischedService.h"
 #include <thrift/transport/TSocket.h>
 #include <thrift/transport/TTransportUtils.h>
@@ -28,17 +34,13 @@ using namespace::apache::thrift::protocol;
 using namespace::apache::thrift::transport;
 using namespace::apache::thrift::server;
 
+
 using boost::shared_ptr;
 
 using namespace alsched;
+*/
 
-#ifdef MY_DEBUG
-# define dbg_printf(...) printf(__VA_ARGS__)
-#else
-# define dbg_printf(...)
-#endif
-
-class TetrischedServiceHandler : virtual public TetrischedServiceIf
+class TetrischedServiceHandler // : virtual public TetrischedServiceIf
 {
 private:
 
@@ -46,7 +48,8 @@ private:
     std::list<MyJob*> pendingJobList;
 
     /** @brief The list for job that running */
-    std::priority_queue<MyJob*, vector<MyJob*>, JobComparison> runningJobList;
+    std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> runningJobList;
+
 
 
     /** @brief The racks and machines array */
@@ -102,7 +105,7 @@ private:
     void AllocateBestMachines(MyJob* job, std::set<int32_t> & machines) {
         for (std::set<int32_t>::iterator it=machines.begin(); 
                                                     it!=machines.end(); ++it) {
-            GetMachineByID(*it)->assignJob(job);
+            GetMachineByID(*it)->AssignJob(job);
         }
 
     }
@@ -115,6 +118,7 @@ private:
         dbg_printf("Allocate %d machines for %d\n", (int)machines.size(),jobId);
         printRackInfo();
 
+        /*
         int yarnport = 9090;
         shared_ptr<TTransport> socket(new TSocket("localhost", yarnport));
         shared_ptr<TTransport> transport(new TBufferedTransport(socket));
@@ -128,6 +132,7 @@ private:
         } catch (TException& tx) {
             dbg_printf("ERROR calling YARN : %s\n", tx.what());
         }
+        */
     }
     
 
@@ -169,7 +174,7 @@ private:
     MyJob* getPendingJobByID(int jobID) {
         for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
                 i != pendingJobList.end(); ++i) {
-            if ((int)((*i)->JobID) == jobID) {
+            if ((int)((*i)->jobId) == jobID) {
                 return *i;
             }
         }
@@ -181,10 +186,10 @@ private:
 
         printJobInfo();
         
-        Cluster cluster = new Cluster(racks, pendingJobList, runningJobList, maxMachinesPerRack);
-        std::vector<std::vector<int> > schedule = cluster.Schedule();
+        Cluster* cluster = new Cluster(racks, pendingJobList, runningJobList, maxMachinesPerRack);
+        std::vector<std::vector<int> > schedule = cluster->Schedule();
         
-        for (int i = 0; i < schedule.size(); i++) {
+        for (unsigned int i = 0; i < schedule.size(); i++) {
             std::vector<int> oneJob = schedule[i];
             
             int jobID = oneJob[0];
@@ -196,7 +201,7 @@ private:
             }
             
             std::set<int32_t> machines; 
-            for (int j = 2; j < oneJob.size(); j++) {
+            for (unsigned int j = 2; j < oneJob.size(); j++) {
                 machines.insert(oneJob[j]);
             }
             AllocateBestMachines(scheduledJob, machines);
@@ -204,11 +209,11 @@ private:
             
             AllocResourcesWrapper(jobID, machines);
             
-            pendingJobList.erase(scheduledJob);
+            pendingJobList.remove(scheduledJob);
             runningJobList.push(scheduledJob);
         }
 
-        cluster.Clear();
+        cluster->Clear();
         delete cluster;
     }
 
@@ -227,10 +232,6 @@ public:
             racks.push_back(rack);
             count += rackInfo[i];
         }
-
-        sameRackVMs = new std::set<int32_t>*[count];
-        for (int i = 0; i < count; i++)
-            sameRackVMs[i] = NULL;
     }
 
     /** @brief A job is added to scheduler, waiting for allocating resources
@@ -255,8 +256,8 @@ public:
         dbg_printf("a new job comming: id:%d, type:%d, k:%d\n", jobId, 
                 jobType, k);
 
-        pendingJobList.push(
-                new MyJob(jobId, jobType, k, duration, slowDuration));
+        pendingJobList.push_back(
+                new MyJob(jobId, jobType, k, duration, slowDuration, time(NULL)));
         
         Schedule();
     }
@@ -282,14 +283,17 @@ public:
                 std::vector<MyJob*> tmpJobs;
                 while (!runningJobList.empty()) {
                     if (runningJobList.top()->jobId == job->jobId) {
-                        delete runningJobList.pop();
+                        MyJob *tmp = runningJobList.top();
+                        runningJobList.pop();
+                        delete tmp;
                         break;
                     }
                     else {
-                        tmpJobs.push_back(runningJobList.pop());
+                        tmpJobs.push_back(runningJobList.top());
+                        runningJobList.pop();
                     }
                 }
-                for (int i = 0; i < tmpJobs.size(); i++) {
+                for (unsigned int i = 0; i < tmpJobs.size(); i++) {
                     runningJobList.push(tmpJobs[i]);
                 }
             }
@@ -301,7 +305,8 @@ public:
 };
 
 int main(int argc, char **argv)
-{
+{   
+    /*
     int alschedport = 9091;
     shared_ptr<TetrischedServiceHandler> handler(new TetrischedServiceHandler());
     shared_ptr<TProcessor> processor(new TetrischedServiceProcessor(handler));
@@ -312,5 +317,7 @@ int main(int argc, char **argv)
     TSimpleServer server(processor, serverTransport, transportFactory, protocolFactory);
     server.serve();
     return 0;
+    */
+
 }
 

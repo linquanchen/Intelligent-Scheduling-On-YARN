@@ -3,7 +3,7 @@
     
 Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks, 
             std::list<MyJob*> & pendingJobList,
-            std::priority_queue<MyJob*, vector<MyJob*>, JobComparison> & runningJobList,
+            std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> & runningJobList,
             int maxMachinesPerRack) {
 
     this->racks = racks;
@@ -14,9 +14,10 @@ Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks,
         this->pendingJobList.push_back(newJob);
     }
     
-    std::priority_queue<MyJob*, vector<MyJob*>, JobComparison> tmp = runningJobList;
+    std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> tmp = runningJobList;
     while(!tmp.empty()) {
-        MyJob* tmpJob = tmp.pop();
+        MyJob* tmpJob = tmp.top();
+        tmp.pop();
 
         MyJob* newJob = new MyJob(tmpJob);
         this->runningJobList.push(newJob);
@@ -30,14 +31,15 @@ Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks,
 }
 
 
-Cluster::Clear() {
+void Cluster::Clear() {
     for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
                                              i != pendingJobList.end(); ++i) {
         delete (*i);
     }
 
     while(!runningJobList.empty()) {
-        MyJob* tmpJob = runningJobList.pop();
+        MyJob* tmpJob = runningJobList.top();
+        runningJobList.pop();
         delete tmpJob;
     }
 }
@@ -67,7 +69,7 @@ int Cluster::GetFreeMachinesNum() {
 void Cluster::AllocateMachinesToJob(MyJob* job, std::set<int32_t> & machines, bool isPrefered) {
     for (std::set<int32_t>::iterator it=machines.begin(); 
                                                 it!=machines.end(); ++it) {
-        GetMachineByID(*it)->assignJob(job);
+        GetMachineByID(*it)->AssignJob(job);
     }
 
     job->Start(machines, isPrefered);
@@ -79,7 +81,7 @@ void Cluster::FreeMachinesByJob(MyJob* job) {
     for (std::set<int32_t>::iterator it=tmpMachines.begin(); 
                                     it!=tmpMachines.end(); ++it) {
         GetMachineByID(*it)->Free();
-        job->assignedMachines->erase(*it);
+        job->assignedMachines.erase(*it);
     }
 }
 
@@ -255,7 +257,7 @@ std::vector<std::vector<int> > Cluster::Schedule() {
                 bool isPrefered = 
                         GetBestMachines((*i)->jobType, (*i)->k, tmpMachines);
                 
-                tmpUtility = (*i)->CalUtility(time(), isPrefered);
+                tmpUtility = (*i)->CalUtility(time(NULL), isPrefered);
 
                 // if find a job with larger utility, update schedule solution
                 if (maxUtility < tmpUtility) {
@@ -292,20 +294,23 @@ std::vector<std::vector<int> > Cluster::Schedule() {
         // delay the last potential running job
         delayJobNum++;
 
-        MyJob* myjob = potentialRunningJobs.pop_back();
-        curUtility -= potentialUtility.pop_back();
+
+        MyJob* myjob = potentialRunningJobs.back();
+        potentialRunningJobs.pop_back();
+        curUtility -= potentialUtility.back();
+        potentialUtility.pop_back();
         
         pendingJobList.push_back(myjob);
         FreeMachinesByJob(myjob);
             
-        std::priority_queue<MyJob*, vector<MyJob*>, JobComparison> tmpRunningJobList = runningJobList;
+        std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> tmpRunningJobList = runningJobList;
         for (std::vector<MyJob*>::iterator it=potentialRunningJobs.begin(); 
                                         it != potentialRunningJobs.end(); ++it){
             tmpRunningJobList.push(*it);
         }
 
         Cluster tmpCluster(racks, pendingJobList, tmpRunningJobList, maxMachinesPerRack);
-        addedUtility = tmpCluster.CalAddedUtility(delayJobNum);
+        double addedUtility = tmpCluster.CalAddedUtility(delayJobNum);
         tmpCluster.Clear();
 
         if (curUtility + addedUtility > resultUtility) {
@@ -319,10 +324,11 @@ std::vector<std::vector<int> > Cluster::Schedule() {
 }
 
 double Cluster::CalAddedUtility(int delayJobNum) {
-    time_t curTime = time();
+    time_t curTime = time(NULL);
     double resultUtility = 0, penaltyUtility = 0;
-    while (!RunningJobList.empty()) {
-        MyJob* finishedJob = RunningJobList.pop();
+    while (!runningJobList.empty()) {
+        MyJob* finishedJob = runningJobList.top();
+        runningJobList.pop();
         FreeMachinesByJob(finishedJob);
         
         double elapsedTime = difftime(finishedJob->GetFinishedTime(), curTime);
@@ -388,7 +394,7 @@ double Cluster::CalAddedUtility(int delayJobNum) {
     return resultUtility;
 }
 
-std::vector<std::vector<int> > constructResult(std::vector<MyJob*> & jobs) {
+std::vector<std::vector<int> > Cluster::constructResult(std::vector<MyJob*> & jobs) {
     std::vector<std::vector<int> > result;
 
     for (std::vector<MyJob*>::iterator it=jobs.begin(); 
@@ -396,7 +402,7 @@ std::vector<std::vector<int> > constructResult(std::vector<MyJob*> & jobs) {
         std::vector<int> tmp;
         tmp.push_back((*it)->jobId);
         tmp.push_back((*it)->isPrefered);
-        for (std::vector<int32_t>::iterator i=(*it)->assignedMachines.begin(); 
+        for (std::set<int32_t>::iterator i=(*it)->assignedMachines.begin(); 
                                         i != (*it)->assignedMachines.end(); ++i) {
             tmp.push_back(*i);
         }

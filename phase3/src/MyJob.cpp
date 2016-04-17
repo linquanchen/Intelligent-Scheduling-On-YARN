@@ -2,7 +2,7 @@
 #include <ctime>
 
 MyJob::MyJob(JobID jobId, job_t::type jobType, int32_t k, double duration, 
-            double slowDuration, double arriveTime) {
+            double slowDuration, time_t arriveTime) {
     this->jobId = jobId;
     this->jobType = jobType;
     this->k = k;
