@@ -30,3 +30,7 @@ bool MyJob::IsFinished() {
 }
 
 
+time_t MyJob::GetFinishedTime() {
+    double runningTime = isPrefered ? duration : slowDuration;
+    return startTime + (int)runningTime;
+}
