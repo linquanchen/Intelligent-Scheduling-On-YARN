@@ -29,14 +29,15 @@ public:
 };
 
 struct JobComparison {
-    bool operator() (const MyJob& job1, const MyJob& job2) const {
+    //bool operator() (const MyJob& job1, const MyJob& job2) const {
+    bool operator() (const MyJob* job1, const MyJob* job2) const {
         double endTime1, endTime2;
         double durtion;
-        duration = job1.isPrefered ? job1.duration : job1.slowDuration;
-        endTime1 = static_cast<double>(job1.startTime(NULL)) + duration;
+        duration = job1->isPrefered ? job1->duration : job1->slowDuration;
+        endTime1 = static_cast<double>(job1->startTime(NULL)) + duration;
         
-        duration = job2.isPrefered ? job2.duration : job2.slowDuration;
-        endTime2 =  static_cast<double>(job2.startTime(NULL)) + duration;
+        duration = job2->isPrefered ? job2->duration : job2->slowDuration;
+        endTime2 =  static_cast<double>(job2->startTime(NULL)) + duration;
         
         return endTime1 > endTime2;
     }
