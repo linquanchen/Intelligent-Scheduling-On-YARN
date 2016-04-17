@@ -170,19 +170,19 @@ private:
         for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
                 i != pendingJobList.end(); ++i) {
             if ((int)((*i)->JobID) == jobID) {
-                return &i;
+                return *i;
             }
         }
         return NULL;
     }
 
-    bool Schedule() {
+    void Schedule() {
         printRackInfo();
 
         printJobInfo();
         
         Cluster cluster = new Cluster(racks, pendingJobList, runningJobList, maxMachinesPerRack);
-        std::vector<std::vector<int>> schedule = cluster.Schedule();
+        std::vector<std::vector<int> > schedule = cluster.Schedule();
         
         for (int i = 0; i < schedule.size(); i++) {
             std::vector<int> oneJob = schedule[i];
@@ -191,6 +191,9 @@ private:
             bool isPrefered = (oneJob[1] == 1);
             
             MyJob *scheduledJob = getPendingJobByID(jobID);
+            if (scheduledJob == NULL) {
+                dbg_printf("something wrong in Schedule() of sheculer");
+            }
             
             std::set<int32_t> machines; 
             for (int j = 2; j < oneJob.size(); j++) {
@@ -268,6 +271,7 @@ public:
         // free machine resource one by one
         for (std::set<int32_t>::iterator it=machines.begin(); 
                 it!=machines.end(); ++it) {
+            int machineID = *it;
             MyMachine *machine = GetMachineByID(machineID);
             machine->Free();
 

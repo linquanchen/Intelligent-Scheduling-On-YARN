@@ -235,7 +235,7 @@ bool Cluster::GetBestMachines(job_t::type jobType, int k,
 
 std::vector<std::vector<int> > Cluster::Schedule() {
     std::vector<MyJob*> potentialRunningJobs;
-    std::vector<MyJob*> result;
+    std::vector<std::vector<int> > result;
     std::vector<double> potentialUtility;
     double resultUtility;
 
@@ -280,7 +280,7 @@ std::vector<std::vector<int> > Cluster::Schedule() {
     }
 
     // initial result is allocate resources for all potential running jobs 
-    result = potentialRunningJobs;
+    result = constructResult(potentialRunningJobs);
     // initial resultUtility is the total utility that allocate resources for all potential running jobs 
     resultUtility = 0;
     for (std::vector<double>::iterator it = potentialUtility.begin() ; it != potentialUtility.end(); ++it)
@@ -310,16 +310,15 @@ std::vector<std::vector<int> > Cluster::Schedule() {
 
         if (curUtility + addedUtility > resultUtility) {
             resultUtility = curUtility + addedUtility;
-            result = potentialRunningJobs;
+            result = constructResult(potentialRunningJobs);
         }
 
     }
 
-    // return result
-
+    return result;
 }
 
-double Cluster::CalAddedUtility(delayJobNum) {
+double Cluster::CalAddedUtility(int delayJobNum) {
     time_t curTime = time();
     double resultUtility = 0, penaltyUtility = 0;
     while (!RunningJobList.empty()) {
@@ -380,10 +379,32 @@ double Cluster::CalAddedUtility(delayJobNum) {
 
         // free temporty allocated machines
         for (std::vector<MyJob*>::iterator it=tmpRunningJobs.begin(); 
-                                        it != tmpRunningJobs.end(); ++it){
+                                        it != tmpRunningJobs.end(); ++it) {
             FreeMachinesByJob(*it);
             pendingJobList.push_back(*it);
         }
     }
+
+    return resultUtility;
 }
+
+std::vector<std::vector<int> > constructResult(std::vector<MyJob*> & jobs) {
+    std::vector<std::vector<int> > result;
+
+    for (std::vector<MyJob*>::iterator it=jobs.begin(); 
+                                        it != jobs.end(); ++it) {
+        std::vector<int> tmp;
+        tmp.push_back((*it)->jobId);
+        tmp.push_back((*it)->isPrefered);
+        for (std::vector<int32_t>::iterator i=(*it)->assignedMachines.begin(); 
+                                        i != (*it)->assignedMachines.end(); ++i) {
+            tmp.push_back(*i);
+        }
+
+        result.push_back(tmp);
+    }
+
+    return result;
+}
+
 
