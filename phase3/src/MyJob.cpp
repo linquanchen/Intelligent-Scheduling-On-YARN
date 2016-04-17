@@ -12,6 +12,18 @@ MyJob::MyJob(JobID jobId, job_t::type jobType, int32_t k, double duration,
     this->startTime = -1;
 }
 
+MyJob::MyJob(MyJob* job) {
+    jobId = job->jobId;
+    jobType = job->jobType;
+    k = job->k;
+    duration = job->duration;
+    slowDuration = job->slowDuration;
+    arriveTime = job->arriveTime;
+    startTime = job->startTime;
+    isPrefered = job->isPrefered;
+    assignedMachines = job->assignedMachines;
+}
+
 void MyJob::Start(std::set<int32_t> & machines, bool isPrefered) {
     time(&this->startTime);
     this->isPrefered = isPrefered;
@@ -29,4 +41,13 @@ bool MyJob::IsFinished() {
         return false;
 }
 
+double MyJob::CalUtility(bool isPrefered) {
+    double waitingTime = difftime(time(), arriveTime);
+    double runningTime = isPrefered ? duration : slowDuration;
+    double result = 1200 - waitingTime - runningTime;
+    return result < 0 ? 0 : result;
+}
 
+double MyJob::GetRunningTime() {
+    return isPrefered ? duration : slowDuration;
+}

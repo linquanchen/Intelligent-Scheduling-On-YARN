@@ -3,13 +3,43 @@
     
 Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks, 
             std::list<MyJob*> & pendingJobList,
-            std::list<MyJob*> & runningJobList,
+            std::priority_queue<MyJob*> & runningJobList,
             int maxMachinesPerRack) {
 
     this->racks = racks;
-    
+
+    for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
+                                             i != pendingJobList.end(); ++i) {
+        MyJob* newJob = new MyJob(*i);
+        this->pendingJobList.push_back(newJob);
+    }
+
+    std::priority_queue<MyJob*> tmp = runningJobList;
+    while(!tmp.empty()) {
+        MyJob* tmpJob = tmp.pop();
+
+        MyJob* newJob = new MyJob(tmpJob);
+        this->runningJobList.push(newJob);
+        for (std::set<int32_t>::iterator it=tmpJob->assignedMachines.begin(); 
+                                    it!=tmpJob->assignedMachines.end(); ++it) {
+            GetMachineByID(*it)->AssignJob(newJob);
+        }
+    }
 
     this->maxMachinesPerRack = maxMachinesPerRack;
+}
+
+
+Cluster::Clear() {
+    for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
+                                             i != pendingJobList.end(); ++i) {
+        delete (*i);
+    }
+
+    while(!runningJobList.empty()) {
+        MyJob* tmpJob = runningJobList.pop();
+        delete tmpJob;
+    }
 }
 
 MyMachine* Cluster::GetMachineByID(unsigned int id) {
@@ -49,7 +79,7 @@ void Cluster::FreeMachinesByJob(MyJob* job) {
     for (std::set<int32_t>::iterator it=tmpMachines.begin(); 
                                     it!=tmpMachines.end(); ++it) {
         GetMachineByID(*it)->Free();
-        job->erase(*it);
+        job->assignedMachines->erase(*it);
     }
 }
 
@@ -202,3 +232,154 @@ bool Cluster::GetBestMachines(job_t::type jobType, int k,
         }
     } 
 }
+
+std::vector<std::vector<int> > Cluster::Schedule() {
+    std::vector<MyJob*> potentialRunningJobs;
+    std::vector<MyJob*> result;
+    std::vector<double> potentialUtility;
+    double resultUtility;
+
+    // try to allocate resources for one or more jobs
+    while (true) {
+        std::list<MyJob*>::iterator bestJobIter;
+        double maxUtility = -1, tmpUtility;
+        std::set<int32_t> bestMachines, tmpMachines;
+        bool isBestisPrefered;
+
+        int freeMachineNum = GetFreeMachinesNum();
+
+        for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
+                                                    i != pendingJobList.end(); ++i){
+            if (freeMachineNum >= (*i)->k) {
+                // try to find the best (preferred) machine allocation
+                bool isPrefered = 
+                        GetBestMachines((*i)->jobType, (*i)->k, tmpMachines);
+                
+                tmpUtility = (*i)->CalUtility();
+
+                // if find a job with larger utility, update schedule solution
+                if (maxUtility < tmpUtility) {
+                    bestJobIter = i;
+                    maxUtility = tmpUtility;
+                    bestMachines = tmpMachines;
+                    isBestisPrefered = isPrefered;
+                    tmpMachines.clear();
+                }  
+            }
+        }
+
+        if (maxUtility > 0) {
+            AllocateMachinesToJob(*bestJobIter, bestMachines, isBestisPrefered);
+            potentialRunningJobs.push_back(*bestJobIter);
+            pendingJobList.erase(bestJobIter);
+
+            potentialUtility.push_back(maxUtility);
+        } else
+            // not job can be satisfied with current left resource
+            break;
+    }
+
+    // initial result is allocate resources for all potential running jobs 
+    result = potentialRunningJobs;
+    // initial resultUtility is the total utility that allocate resources for all potential running jobs 
+    resultUtility = 0;
+    for (std::vector<double>::iterator it = potentialUtility.begin() ; it != potentialUtility.end(); ++it)
+        resultUtility += *it;
+
+    double curUtility = resultUtility;
+    int delayJobNum = 0;
+    while(!potentialRunningJobs.empty()) {
+        // delay the last potential running job
+        delayJobNum++;
+
+        MyJob* myjob = potentialRunningJobs.pop_back();
+        curUtility -= potentialUtility.pop_back();
+        
+        pendingJobList.push_back(myjob);
+        FreeMachinesByJob(myjob);
+
+        std::priority_queue<MyJob*> tmpRunningJobList = runningJobList;
+        for (std::vector<MyJob*>::iterator it=potentialRunningJobs.begin(); 
+                                        it != potentialRunningJobs.end(); ++it){
+            tmpRunningJobList.push(*it);
+        }
+
+        Cluster tmpCluster(racks, pendingJobList, tmpRunningJobList, maxMachinesPerRack);
+        addedUtility = tmpCluster.CalAddedUtility(delayJobNum);
+
+        if (curUtility + addedUtility > resultUtility) {
+            resultUtility = curUtility + addedUtility;
+            result = potentialRunningJobs;
+        }
+
+    }
+
+    // return result
+
+}
+
+double Cluster::CalAddedUtility(delayJobNum) {
+    time_t lastTime = 0;
+    double resultUtility = 0, penaltyUtility = 0;
+    while (!RunningJobList.empty()) {
+        MyJob* finishedJob = RunningJobList.pop();
+        FreeMachinesByJob(finishedJob);
+        
+        penaltyUtility -= delayJobNum * (finishedJob->GetRunningTime() - lastTime);
+        lastTime = finishedJob->GetRunningTime();
+
+
+        double addedUtility = 0;
+        std::vector<MyJob*> tmpRunningJobs;
+        // calculate addedUtility when delay i jobs to later time to run
+        for (int k = 0; k < delayJobNum; k++) {
+            std::list<MyJob*>::iterator bestJobIter;
+            double maxUtility = -1, tmpUtility;
+            std::set<int32_t> bestMachines, tmpMachines;
+            bool isBestisPrefered;
+
+            int freeMachineNum = GetFreeMachinesNum();
+
+            for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
+                                                        i != pendingJobList.end(); ++i){
+                if (freeMachineNum >= (*i)->k) {
+                    // try to find the best (preferred) machine allocation
+                    bool isPrefered = 
+                            GetBestMachines((*i)->jobType, (*i)->k, tmpMachines);
+                    
+                    tmpUtility = (*i)->CalUtility();
+
+                    // if find a job with larger utility, update schedule solution
+                    if (maxUtility < tmpUtility) {
+                        bestJobIter = i;
+                        maxUtility = tmpUtility;
+                        bestMachines = tmpMachines;
+                        isBestisPrefered = isPrefered;
+                        tmpMachines.clear();
+                    }  
+                }
+            }
+
+            if (maxUtility > 0) {
+                AllocateMachinesToJob(*bestJobIter, bestMachines, isBestisPrefered);
+                tmpRunningJobs.push_back(*bestJobIter);
+                pendingJobList.erase(bestJobIter);
+
+                addedUtility += maxUtility;
+            } else
+                // impossible, something wrong
+                dbg_printf("error in CalAddedUtility!");
+        }
+
+        if (resultUtility < penaltyUtility + addedUtility)
+            resultUtility = penaltyUtility + addedUtility;
+
+        // free temporty allocated machines
+        for (std::vector<MyJob*>::iterator it=tmpRunningJobs.begin(); 
+                                        it != tmpRunningJobs.end(); ++it){
+            FreeMachinesByJob(*it);
+            pendingJobList.push_back(*it);
+        }
+    }
+}
+
