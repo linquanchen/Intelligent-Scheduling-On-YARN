@@ -306,6 +306,7 @@ std::vector<std::vector<int> > Cluster::Schedule() {
 
         Cluster tmpCluster(racks, pendingJobList, tmpRunningJobList, maxMachinesPerRack);
         addedUtility = tmpCluster.CalAddedUtility(delayJobNum);
+        tmpCluster.Clear();
 
         if (curUtility + addedUtility > resultUtility) {
             resultUtility = curUtility + addedUtility;
