@@ -335,7 +335,7 @@ double Cluster::CalAddedUtility(delayJobNum) {
 
         double addedUtility = 0;
         std::vector<MyJob*> tmpRunningJobs;
-        // calculate addedUtility when delay i jobs to later time to run
+        // calculate addedUtility when delay k jobs to later time to run
         for (int k = 0; k < delayJobNum; k++) {
             std::list<MyJob*>::iterator bestJobIter;
             double maxUtility = -1, tmpUtility;
