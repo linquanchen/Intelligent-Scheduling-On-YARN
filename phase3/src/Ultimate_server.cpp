@@ -94,8 +94,8 @@ private:
         return rv;
     }
 
-    MyMachine* GetMachineByID(unsigned int id) {
-        unsigned int rackID = 0;
+    MyMachine* GetMachineByID(uint32_t id) {
+        uint32_t rackID = 0;
         while (id >= racks[rackID].size()) {
             id -= racks[rackID].size();
             rackID++;
@@ -281,11 +281,16 @@ public:
         // free machine resource one by one
         for (std::set<int32_t>::iterator it=machines.begin(); 
                 it!=machines.end(); ++it) {
+            
             int machineID = *it;
-            MyMachine *machine = GetMachineByID(machineID);
-            machine->Free();
+            
 
+            MyMachine *machine = GetMachineByID(machineID);
+            
             MyJob *job = machine->belongedJob;
+            
+            machine->Free();
+            
             job->FreeMachine(machineID);
             
             if (job->IsFinished()) {
@@ -330,10 +335,17 @@ int main(int argc, char **argv)
     TetrischedServiceHandler tetrischedServiceHandler;
 
     int counter = 0;
-    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 4, 0, 10, 20);
-    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 4, 0, 10, 20);
-    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 4, 0, 10, 20);
-    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 4, 0, 10, 20);
-    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 4, 0, 100, 200);
+    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 6, 0, 10, 20);
+    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 6, 0, 10, 20);
+    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 6, 0, 10, 20);
+    
+    std::set<int32_t> machines;
+    machines.insert(4);
+    machines.insert(5);
+    machines.insert(6);
+    machines.insert(7);
+    machines.insert(8);
+    machines.insert(9);
+    tetrischedServiceHandler.FreeResources(machines);
  }
 
