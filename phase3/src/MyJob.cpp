@@ -48,6 +48,7 @@ double MyJob::CalUtility(bool isPrefered) {
     return result < 0 ? 0 : result;
 }
 
-double MyJob::GetRunningTime() {
-    return isPrefered ? duration : slowDuration;
+time_t MyJob::GetFinishedTime() {
+    double runningTime = isPrefered ? duration : slowDuration;
+    return startTime + (int)runningTime;
 }
