@@ -180,8 +180,9 @@ private:
         printRackInfo();
 
         printJobInfo();
-
-        std::vector<std::vector<int>> schedule;
+        
+        Cluster cluster = new Cluster(racks, pendingJobList, runningJobList, maxMachinesPerRack);
+        std::vector<std::vector<int>> schedule = cluster.Schedule();
         
         for (int i = 0; i < schedule.size(); i++) {
             std::vector<int> oneJob = schedule[i];
@@ -194,7 +195,6 @@ private:
             std::set<int32_t> machines; 
             for (int j = 2; j < oneJob.size(); j++) {
                 machines.insert(oneJob[j]);
-                //GetMachineByID(oneJob[j])->AssignJob(scheduledJob);
             }
             AllocateBestMachines(scheduledJob, machines);
             scheduledJob->Start(machines, isPrefered);
@@ -204,85 +204,9 @@ private:
             pendingJobList.erase(scheduledJob);
             runningJobList.push(scheduledJob);
         }
-        /*
-        // check if this machine belongs to a set of machines that were 
-        // on the same rack and allocated to the same job
-        if (sameRackVMs[machine] != NULL) {
-            std::set<int32_t>* sameRackVM = sameRackVMs[machine];
-            sameRackVMs[machine] = NULL;
 
-            (*sameRackVM).erase((*sameRackVM).find(machine));
-            // if there are some other machines that were on the same rack and 
-            // allocated to the same job, do not allocate this machine until
-            // all machines are freed 
-            if (!(*sameRackVM).empty())
-                return;
-
-            delete sameRackVM;
-        }
-        */
-
-        // try to allocate resources for one or more jobs
-        while (true) {
-            std::list<MyJob*>::iterator bestJobIter;
-            double shortestTime = -1, tmpTime;
-            std::set<int32_t> bestMachines, tmpMachines;
-            bool isBestisPrefered;
-
-            int freeMachineNum = GetFreeMachinesNum();
-
-            for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
-                                                        i != pendingJobList.end(); ++i){
-                if (freeMachineNum >= (*i)->k) {
-                    // try to find the best (preferred) machine allocation
-                    bool isPrefered = 
-                            GetBestMachines((*i)->jobType, (*i)->k, tmpMachines);
-                    
-                    tmpTime = isPrefered ? (*i)->duration : (*i)->slowDuration;
-
-                    // if find a job with shorter running time, 
-                    // update schedule solution
-                    if (shortestTime < 0 || shortestTime > tmpTime) {
-                        bestJobIter = i;
-                        shortestTime = tmpTime;
-                        bestMachines = tmpMachines;
-                        isBestisPrefered = isPrefered;
-                        tmpMachines.clear();
-                    }  
-                }
-            }
-
-            if (shortestTime > 0) {
-                dbg_printf("Choose job %d to run\n", (*bestJobIter)->jobId);
-                
-                /*
-                // if this job is a MPI job and all allocated resources are on 
-                // the same rack, record this information
-                if (isBestisPrefered && 
-                    (*bestJobToRun).jobType == job_t::JOB_MPI) {
-
-                    std::set<int32_t> *sameRackVM = 
-                                            new std::set<int32_t>(bestMachines);
-
-                    for (std::set<int32_t>::iterator it=bestMachines.begin(); 
-                            it!=bestMachines.end(); ++it) {
-                        sameRackVMs[*it] = sameRackVM;
-                    }        
-                }
-                */
-
-                AllocateBestMachines(*bestJobIter, bestMachines);
-                (*bestJobIter)->Start(isBestisPrefered);
-                pendingJobList.erase(bestJobIter);
-                runningJobList.push(belongedJob);
-
-
-                AllocResourcesWrapper((*bestJobIter)->jobId, bestMachines);
-                
-            } else
-                // not job can be satisfied with current left resource
-                break;
-        }
+        cluster.Clear();
+        delete cluster;
     }
 
 public:

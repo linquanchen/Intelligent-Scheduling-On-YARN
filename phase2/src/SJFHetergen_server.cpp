@@ -62,7 +62,7 @@ private:
             this->isFree = true;
         }
     };
-
+    
     /** @brief The list for job that waiting for allocating resources */
     std::list<ListJob> list;
 
@@ -78,7 +78,7 @@ private:
 
     /** @brief The max number of machines on the same rack */
     int maxMachinesPerRack;
-
+    
     /** @brief Read config-mini config file for topology information
      *  @return A vector which size is the number of racks, each value is the 
      *          number of machines on each rack 
@@ -495,7 +495,6 @@ public:
             // same rack, record this information
             if (isPrefered && jobType == job_t::JOB_MPI) {
                 std::set<int32_t> *sameRackVM = new std::set<int32_t>(machines);
-
                 for (std::set<int32_t>::iterator it=machines.begin(); 
                         it!=machines.end(); ++it) {
                     sameRackVMs[*it] = sameRackVM;
