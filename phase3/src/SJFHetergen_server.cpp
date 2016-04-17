@@ -16,6 +16,7 @@
 #include <fstream>
 #include <string>
 #include "rapidjson/document.h"
+#include <ctime>
 
 #include "YARNTetrischedService.h"
 #include <thrift/transport/TSocket.h>
@@ -39,42 +40,15 @@ using namespace alsched;
 class TetrischedServiceHandler : virtual public TetrischedServiceIf
 {
 private:
-    struct ListJob {
-        JobID jobId;
-        job_t::type jobType;
-        int32_t k;
-        double duration, slowDuration;
-        ListJob(JobID jobId, job_t::type jobType, int32_t k, double duration, 
-                                                        double slowDuration) {
-            this->jobId = jobId;
-            this->jobType = jobType;
-            this->k = k;
-            this->duration = duration;
-            this->slowDuration = slowDuration;
-        }
-    };
-
-    struct MachineResource{
-        int machineID;
-        bool isFree;
-        MachineResource(int machineID) {
-            this->machineID = machineID;
-            this->isFree = true;
-        }
-    };
 
     /** @brief The list for job that waiting for allocating resources */
-    std::list<ListJob> list;
+    std::list<MyJob*> pendingJobList;
+
+    /** @brief The list for job that running */
+    std::list<MyJob*> runningJobList;
 
     /** @brief The racks and machines array */
-    std::vector<std::vector<MachineResource> > racks;
-
-    /** @brief This array is used to record that which machines are on the
-               same rack and allocated for the same job. The index of array
-               is machine id. The value of each element is a pointer that 
-               points to a set which includes all machines that are on the
-               same rack and allocated for the same job with this machine.*/
-    std::set<int32_t> **sameRackVMs;
+    std::vector<std::vector<MyMachine> > racks;
 
     /** @brief The max number of machines on the same rack */
     int maxMachinesPerRack;
@@ -110,53 +84,25 @@ private:
         return rv;
     }
 
-    /** @brief Get the total number of free machines */
-    int GetFreeMachinesNum() {
-        int count = 0;
-        for (unsigned int i = 0; i < racks.size(); i++)
-            for (unsigned int j = 0; j < racks[i].size(); j++)
-                if (racks[i][j].isFree)
-                    count++;
-        return count;
-    }
-
-    /** @brief Get the id of the next free machines, 
-     *         mark the machine as allocated
-     */
-    int GetNextFreeMachine() {
-        for (unsigned int i = 0; i < racks.size(); i++)
-            for (unsigned int j = 0; j < racks[i].size(); j++)
-                if (racks[i][j].isFree) {
-            racks[i][j].isFree = false;
-                    return racks[i][j].machineID;
-        }
-        return -1;
-    }
-
-    /** @brief Mark a machine as free */
-    void FreeMachine(unsigned int id) {
+    MyMachine* GetMachineByID(unsigned int id) {
         unsigned int rackID = 0;
         while (id >= racks[rackID].size()) {
             id -= racks[rackID].size();
             rackID++;
         }
-        racks[rackID][id].isFree = true;
+        return &(racks[rackID][id]);
     }
 
+    
     /** @brief Mark a set of machines as allocated
      *  @param machines The set of machines that will be marked as allocated
      */
-    void AllocateBestMachines(std::set<int32_t> & machines) {
+    void AllocateBestMachines(MyJob* job, std::set<int32_t> & machines) {
         for (std::set<int32_t>::iterator it=machines.begin(); 
                                                     it!=machines.end(); ++it) {
-            unsigned int id = *it;
-            unsigned int rackID = 0;
-            while (id >= racks[rackID].size()) {
-                id -= racks[rackID].size();
-                rackID++;
-            }
-            racks[rackID][id].isFree = false;
+            GetMachineByID(*it)->assignJob(job);
         }
+
     }
 
     /** @brief Wrapper for allocate resources
@@ -181,155 +127,7 @@ private:
             dbg_printf("ERROR calling YARN : %s\n", tx.what());
         }
     }
-
-    /** @brief Get free VM number of every rack
-     *  @return free VM number of every rack
-     */
-    std::vector<int> GetFreeMachines() {
-        std::vector<int> freeMachines; 
-        for (unsigned int i = 0; i < racks.size(); i++) {
-            int num = 0;
-            for (unsigned int j = 0; j < racks[i].size(); j++) {
-                if (racks[i][j].isFree) {
-                    num++;
-                }
-            }
-            freeMachines.push_back(num);
-        }
-        return freeMachines;
-    }
-
-    /** @brief Allocate VMs to the job based on number k and rack index
-     *  @param machines The set of machines that will be allocated to the job  
-     *  @param k The number of machines that the job is asking
-     *  @param index The rack will be allocateed to job
-     */
-    void AddJobsByRack(std::set<int> & machines, int k, int index) {
-        for (unsigned int i = 0; k != 0 && i < racks[index].size(); i++) {
-            if (racks[index][i].isFree) {
-                machines.insert(racks[index][i].machineID);
-                k--;
-            }
-        }
-        if (k != 0) {
-            dbg_printf("Something wrong with AddJobsByRack()\n");
-        }
-    }
     
-    /** @brief Get the rack number which has minimum free VMs
-     *  @param freemachines the free VM number of every rack
-     *  @return the index of the rack
-     */
-    int FindMinRack(std::vector<int> & freeMachines) {
-        int min = maxMachinesPerRack;
-        int index = -1;
-        for (unsigned int i = 0; i < freeMachines.size(); i++) {
-            int num = freeMachines[i];
-            if (num != 0 && num <= min) {
-                min = num;
-                index = i;
-            }
-        }
-        return index;
-    }
-
-    /** @brief Get machines for MPI job.
-     *  @param machines The set of machines that will be allocated to the job 
-     *  @param k The number of machines that the job is asking 
-     *  @return true if on job's preferred allocation, else false
-     */
-    bool GetMachinesForMPI(std::set<int> & machines, int k) {
-        std::vector<int> freeMachines = GetFreeMachines();
-        
-        int min = maxMachinesPerRack + 1;
-        int index = -1;
-        for (unsigned int i = 1; i < freeMachines.size(); i++) {
-            int num = freeMachines[i];
-            if (num >= k) {
-                if (num < min) {
-                    min = num;
-                    index = i;
-                }
-            }        
-        }
-
-        /* When one rack(no GPU) has enough VMs for MPI jobs */
-        if (index != -1) {
-            AddJobsByRack(machines, k, index);    
-            return true;
-        }
-        
-        /* When GPU rack has enough VMs for MPI jobs */
-        if (freeMachines[0] >= k) {
-            AddJobsByRack(machines, k, 0);
-            return true;
-        }
-        
-        while (k != 0) {
-            index = FindMinRack(freeMachines);
-            if (freeMachines[index] <= k) {
-                AddJobsByRack(machines, freeMachines[index], index);
-                k -= freeMachines[index];
-                freeMachines[index] = 0;
-            }
-            else {
-                AddJobsByRack(machines, k, index);
-                k = 0;
-            }
-        }
-        return false;
-    }
-
-    /** @brief Get machines for GPU job.
-     *  @param machines The set of machines that will be allocated to the job 
-     *  @param k The number of machines that the job is asking 
-     *  @return true if on job's preferred allocation, else false
-     */
-    bool GetMachinesForGPU(std::set<int> & machines, int k) {
-        std::vector<int> freeMachines = GetFreeMachines();
-         
-        /* When the GPU rack has enough VMs for GPU jobs */
-        if (freeMachines[0] >= k) {
-            AddJobsByRack(machines, k, 0);
-            return true;
-        }
-        
-        int index;
-        while (k != 0) {
-            index = FindMinRack(freeMachines);
-            if (freeMachines[index] <= k) {
-                AddJobsByRack(machines, freeMachines[index], index);
-                k -= freeMachines[index];
-                freeMachines[index] = 0;
-            }
-            else {
-                AddJobsByRack(machines, k, index);
-                k = 0;
-            }
-        }
-        return false;
-    } 
-
-
-    /** @brief Get machines for specific job.
-     *  @param machines The set of machines that will be allocated to the job 
-     *  @param jobType The type of the job
-     *  @param k The number of machines that the job is asking 
-     *  @return true if on job's preferred allocation, else false
-     */
-    bool GetBestMachines(job_t::type jobType, int k, 
-                                                std::set<int32_t> &machines) {
-        switch(jobType) {
-            case job_t::JOB_MPI:
-                return GetMachinesForMPI(machines, k);
-            case job_t::JOB_GPU:   
-                return GetMachinesForGPU(machines, k);
-            default:{
-                dbg_printf("Unknown job type:%d\n", jobType);
-                return false;
-            }
-        } 
-    }
 
     /** @brief print current resources allocation information */
     void printRackInfo() {  
@@ -343,7 +141,7 @@ private:
             dbg_printf("r%d\t", i);
             int num = 0;
             for (unsigned j = 0; j < racks[i].size(); j++) {
-                int flag = racks[i][j].isFree ? 0 : 1;
+                int flag = racks[i][j].IsFree() ? 0 : 1;
                 dbg_printf("%d\t", flag);
                 num += (1-flag);
             }
@@ -359,23 +157,20 @@ private:
     void printJobInfo() {
         dbg_printf("=============================================\n");
         dbg_printf("Id\tType\tk\tfast\t\tslow\n");
-        for (std::list<ListJob>::iterator i=list.begin(); i != list.end(); ++i){
-            dbg_printf("%d\t%d\t%d\t%f\t%f\n", (*i).jobId, (*i).jobType, 
-                                    (*i).k, (*i).duration, (*i).slowDuration);
+        for (std::list<MyJob*>::iterator i=pendingJobList.begin(); i != pendingJobList.end(); ++i){
+            dbg_printf("%d\t%d\t%d\t%f\t%f\n", (*i)->jobId, (*i)->jobType, 
+                                    (*i)->k, (*i)->duration, (*i)->slowDuration);
         }
         dbg_printf("=============================================\n");
     }
 
-    /** @brief Free one machine and try to allocate resources for new jobs
-     *  @param machine The machine that will be freed
-     */
-    void FreeResource(int32_t machine) {
-        FreeMachine(machine);
 
+    bool Schedule() {
         printRackInfo();
 
         printJobInfo();
 
+        /*
         // check if this machine belongs to a set of machines that were 
         // on the same rack and allocated to the same job
         if (sameRackVMs[machine] != NULL) {
@@ -391,29 +186,30 @@ private:
 
             delete sameRackVM;
         }
+        */
 
         // try to allocate resources for one or more jobs
         while (true) {
-            std::list<ListJob>::iterator bestJobToRun;
+            std::list<MyJob*>::iterator bestJobIter;
             double shortestTime = -1, tmpTime;
             std::set<int32_t> bestMachines, tmpMachines;
             bool isBestisPrefered;
 
             int freeMachineNum = GetFreeMachinesNum();
 
-            for (std::list<ListJob>::iterator i=list.begin(); 
-                                                        i != list.end(); ++i){
-                if (freeMachineNum >= (*i).k) {
+            for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
+                                                        i != pendingJobList.end(); ++i){
+                if (freeMachineNum >= (*i)->k) {
                     // try to find the best (preferred) machine allocation
                     bool isPrefered = 
-                            GetBestMachines((*i).jobType, (*i).k, tmpMachines);
+                            GetBestMachines((*i)->jobType, (*i)->k, tmpMachines);
                     
-                    tmpTime = isPrefered ? (*i).duration : (*i).slowDuration;
+                    tmpTime = isPrefered ? (*i)->duration : (*i)->slowDuration;
 
                     // if find a job with shorter running time, 
                     // update schedule solution
                     if (shortestTime < 0 || shortestTime > tmpTime) {
-                        bestJobToRun = i;
+                        bestJobIter = i;
                         shortestTime = tmpTime;
                         bestMachines = tmpMachines;
                         isBestisPrefered = isPrefered;
@@ -423,7 +219,9 @@ private:
             }
 
             if (shortestTime > 0) {
-                dbg_printf("Choose job %d to run\n", (*bestJobToRun).jobId);
+                dbg_printf("Choose job %d to run\n", (*bestJobIter)->jobId);
+                
+                /*
                 // if this job is a MPI job and all allocated resources are on 
                 // the same rack, record this information
                 if (isBestisPrefered && 
@@ -437,9 +235,16 @@ private:
                         sameRackVMs[*it] = sameRackVM;
                     }        
                 }
-                AllocateBestMachines(bestMachines);
-                AllocResourcesWrapper((*bestJobToRun).jobId, bestMachines);
-                list.erase(bestJobToRun);
+                */
+
+                AllocateBestMachines(*bestJobIter, bestMachines);
+                (*bestJobIter)->Start(isBestisPrefered);
+                pendingJobList.erase(bestJobIter);
+                runningJobList.push_back(belongedJob);
+
+
+                AllocResourcesWrapper((*bestJobIter)->jobId, bestMachines);
+                
             } else
                 // not job can be satisfied with current left resource
                 break;
@@ -455,9 +260,9 @@ public:
 
         int count = 0;
         for (unsigned int i = 0; i < rackInfo.size(); i++) {
-            std::vector<MachineResource> rack;
+            std::vector<MyMachine> rack;
             for(int j = 0; j < rackInfo[i]; j++)
-                rack.push_back(MachineResource(count + j));
+                rack.push_back(MyMachine(count + j));
             racks.push_back(rack);
             count += rackInfo[i];
         }
@@ -481,39 +286,17 @@ public:
                 const int32_t priority, const double duration, 
                 const double slowDuration)
     {   
+        if (duration <= 0 || slowDuration <= 0) {
+            dbg_printf("Parameter check failed, \
+                                            duration should be positive\n");
+        }
+
         dbg_printf("a new job comming: id:%d, type:%d, k:%d\n", jobId, 
                                                                     jobType, k);
 
-        // if there is enough resources and no job ahead of this job, then 
-        // resources can be allocated to this job directly
-        if (list.empty() && GetFreeMachinesNum() >= k) {
-            std::set<int32_t> machines;
-            // try to find the best (preferred) machine allocation
-            bool isPrefered = GetBestMachines(jobType, k, machines);
-
-            // if this job is a MPI job and all allocated resources are on the
-            // same rack, record this information
-            if (isPrefered && jobType == job_t::JOB_MPI) {
-                std::set<int32_t> *sameRackVM = new std::set<int32_t>(machines);
-
-                for (std::set<int32_t>::iterator it=machines.begin(); 
-                        it!=machines.end(); ++it) {
-                    sameRackVMs[*it] = sameRackVM;
-                }        
-            }
-
-            AllocateBestMachines(machines);
-            AllocResourcesWrapper(jobId, machines);
-        } else {
-            // not enough resources or there are some jobs ahead of this job, 
-            // this job must push to list
-            if (duration <= 0 || slowDuration <= 0) {
-                dbg_printf("Parameter check failed, \
-                                                duration should be positive\n");
-            }
-
-            list.push_back(ListJob(jobId, jobType, k, duration, slowDuration));
-        }
+        pendingJobList.push_back(new MyJob(jobId, jobType, k, duration, slowDuration));
+        
+        Schedulel();
     }
 
     /** @brief Free some machine resources
@@ -525,8 +308,11 @@ public:
 
         // free machine resource one by one
         for (std::set<int32_t>::iterator it=machines.begin(); 
-                                                    it!=machines.end(); ++it)
-            FreeResource(*it);
+                                                    it!=machines.end(); ++it) {
+            GetMachineByID(machineID)->FreeMachine();
+        }
+
+        Schedule();
     }
 
 };
