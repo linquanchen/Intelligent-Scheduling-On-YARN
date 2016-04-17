@@ -1,4 +1,5 @@
 #include "inter.h"
+
 class Cluster {
 private:
     /** @brief The racks and machines array */
@@ -197,6 +198,4 @@ private:
             }
         } 
     }
-
-
 };
