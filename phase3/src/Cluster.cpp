@@ -3,7 +3,7 @@
     
 Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks, 
             std::list<MyJob*> & pendingJobList,
-            std::priority_queue<MyJob*> & runningJobList,
+            std::priority_queue<MyJob*, vector<MyJob*>, JobComparison> & runningJobList,
             int maxMachinesPerRack) {
 
     this->racks = racks;
