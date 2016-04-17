@@ -326,7 +326,7 @@ std::vector<std::vector<int> > Cluster::Schedule() {
 
 double Cluster::CalAddedUtility(int delayJobNum) {
     time_t curTime = time(NULL);
-    double resultUtility = 0, penaltyUtility = 0;
+    double resultUtility = 0;//, penaltyUtility = 0;
     while (!runningJobList.empty()) {
         MyJob* finishedJob = runningJobList.top();
         runningJobList.pop();
@@ -334,7 +334,7 @@ double Cluster::CalAddedUtility(int delayJobNum) {
         
         double elapsedTime = difftime(finishedJob->GetFinishedTime(), curTime);
         if (elapsedTime > 0) {
-            penaltyUtility -= delayJobNum * elapsedTime;
+            //penaltyUtility -= delayJobNum * elapsedTime;
             curTime = finishedJob->GetFinishedTime();
         }
 
@@ -381,8 +381,8 @@ double Cluster::CalAddedUtility(int delayJobNum) {
                 dbg_printf("error in CalAddedUtility!");
         }
 
-        if (resultUtility < penaltyUtility + addedUtility)
-            resultUtility = penaltyUtility + addedUtility;
+        if (resultUtility < addedUtility)
+            resultUtility = addedUtility;
 
         // free temporty allocated machines
         for (std::vector<MyJob*>::iterator it=tmpRunningJobs.begin(); 

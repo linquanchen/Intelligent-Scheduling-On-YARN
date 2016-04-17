@@ -25,6 +25,10 @@
 #include <queue>
 #include <stdio.h>
 
+
+
+#include <unistd.h>
+
 /*
 #include "YARNTetrischedService.h"
 #include <thrift/transport/TSocket.h>
@@ -325,7 +329,11 @@ int main(int argc, char **argv)
     */
     TetrischedServiceHandler tetrischedServiceHandler;
 
-    tetrischedServiceHandler.AddJob(0, job_t::JOB_MPI, 4, 0, 10, 20);
-
-}
+    int counter = 0;
+    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 4, 0, 10, 20);
+    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 4, 0, 10, 20);
+    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 4, 0, 10, 20);
+    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 4, 0, 10, 20);
+    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 4, 0, 100, 200);
+ }
 
