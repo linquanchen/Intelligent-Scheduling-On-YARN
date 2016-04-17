@@ -331,7 +331,7 @@ public:
         pendingJobList.push(
                 new MyJob(jobId, jobType, k, duration, slowDuration));
         
-        Schedulel();
+        Schedule();
     }
 
     /** @brief Free some machine resources

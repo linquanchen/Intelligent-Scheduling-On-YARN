@@ -8,13 +8,15 @@ public:
     double duration, slowDuration;
     time_t arriveTime, startTime;
     bool isPrefered;
-    std::set<int> assignedMachines;
+    std::set<int32_t> assignedMachines;
 
     MyJob(JobID jobId, job_t::type jobType, int32_t k, double duration, 
                 double slowDuration, double arriveTime);
+    MyJob(MyJob* job);
     void Start(std::set<int32_t> & machines, bool isPrefered);
     void FreeMachine(int machineID);
     bool IsFinished();
+    double CalUtility(bool isPrefered);
 };
 
 class MyMachine{
@@ -48,6 +50,8 @@ private:
             std::list<MyJob*> & runningJobList,
             int maxMachinesPerRack);
 
+    Clear();
+
     MyMachine* GetMachineByID(unsigned int id);
 
     /** @brief Get the total number of free machines */
@@ -56,7 +60,7 @@ private:
     /** @brief Mark a set of machines as allocated
      *  @param machines The set of machines that will be marked as allocated
      */
-    void AllocateMachinesToJob(MyJob* job, std::set<int32_t> & machines);
+    void AllocateMachinesToJob(MyJob* job, std::set<int32_t> & machines, bool isPrefered);
 
     void FreeMachinesByJob(MyJob* job);
 
@@ -103,6 +107,6 @@ private:
     bool GetBestMachines(job_t::type jobType, int k, 
                                                 std::set<int32_t> &machines);
 
-    // for each vector, 0 is jobID, 1...n is machine ID
+    // for each vector, 0 is jobID, 1 indicates if is prefered, 2...n is machine ID
     std::vector<std::vector<int> > Schedule();
 };
