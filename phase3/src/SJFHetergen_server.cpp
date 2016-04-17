@@ -18,6 +18,7 @@
 #include "rapidjson/document.h"
 #include <ctime>
 
+
 #include "YARNTetrischedService.h"
 #include <thrift/transport/TSocket.h>
 #include <thrift/transport/TTransportUtils.h>
@@ -45,7 +46,8 @@ private:
     std::list<MyJob*> pendingJobList;
 
     /** @brief The list for job that running */
-    std::list<MyJob*> runningJobList;
+    std::priority_queue<MyJob*, vector<MyJob*>, JobComparison> runningJobList;
+
 
     /** @brief The racks and machines array */
     std::vector<std::vector<MyMachine> > racks;
@@ -164,12 +166,44 @@ private:
         dbg_printf("=============================================\n");
     }
 
+    MyJob* getPendingJobByID(int jobID) {
+        for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
+                i != pendingJobList.end(); ++i) {
+            if ((int)((*i)->JobID) == jobID) {
+                return &i;
+            }
+        }
+        return NULL;
+    }
 
     bool Schedule() {
         printRackInfo();
 
         printJobInfo();
 
+        std::vector<std::vector<int>> schedule;
+        
+        for (int i = 0; i < schedule.size(); i++) {
+            std::vector<int> oneJob = schedule[i];
+            
+            int jobID = oneJob[0];
+            bool isPrefered = (oneJob[1] == 1);
+            
+            MyJob *scheduledJob = getPendingJobByID(jobID);
+            
+            std::set<int32_t> machines; 
+            for (int j = 2; j < oneJob.size(); j++) {
+                machines.insert(oneJob[j]);
+                //GetMachineByID(oneJob[j])->AssignJob(scheduledJob);
+            }
+            AllocateBestMachines(scheduledJob, machines);
+            scheduledJob->Start(machines, isPrefered);
+            
+            AllocResourcesWrapper(jobID, machines);
+            
+            pendingJobList.erase(scheduledJob);
+            runningJobList.push(scheduledJob);
+        }
         /*
         // check if this machine belongs to a set of machines that were 
         // on the same rack and allocated to the same job
@@ -240,7 +274,7 @@ private:
                 AllocateBestMachines(*bestJobIter, bestMachines);
                 (*bestJobIter)->Start(isBestisPrefered);
                 pendingJobList.erase(bestJobIter);
-                runningJobList.push_back(belongedJob);
+                runningJobList.push(belongedJob);
 
 
                 AllocResourcesWrapper((*bestJobIter)->jobId, bestMachines);
@@ -292,9 +326,10 @@ public:
         }
 
         dbg_printf("a new job comming: id:%d, type:%d, k:%d\n", jobId, 
-                                                                    jobType, k);
+                jobType, k);
 
-        pendingJobList.push_back(new MyJob(jobId, jobType, k, duration, slowDuration));
+        pendingJobList.push(
+                new MyJob(jobId, jobType, k, duration, slowDuration));
         
         Schedule();
     }
@@ -308,8 +343,28 @@ public:
 
         // free machine resource one by one
         for (std::set<int32_t>::iterator it=machines.begin(); 
-                                                    it!=machines.end(); ++it) {
-            GetMachineByID(machineID)->Free();
+                it!=machines.end(); ++it) {
+            MyMachine *machine = GetMachineByID(machineID);
+            machine->Free();
+
+            MyJob *job = machine->belongedJob;
+            job->FreeMachine(machineID);
+            
+            if (job->IsFinished()) {
+                std::vector<MyJob*> tmpJobs;
+                while (!runningJobList.empty()) {
+                    if (runningJobList.top()->jobId == job->jobId) {
+                        delete runningJobList.pop();
+                        break;
+                    }
+                    else {
+                        tmpJobs.push_back(runningJobList.pop());
+                    }
+                }
+                for (int i = 0; i < tmpJobs.size(); i++) {
+                    runningJobList.push(tmpJobs[i]);
+                }
+            }
         }
 
         Schedule();
