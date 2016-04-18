@@ -160,7 +160,9 @@ private:
     bool GetBestMachines(job_t::type jobType, int k, 
                                                 std::set<int32_t> &machines);
 
-    double CalAddedUtility(int delayJobNum);
+    std::vector<std::vector<int> > Search(int step, int searchEndJobId, time_t curTime, double & resultUtility);
+
+    std::vector<std::vector<int> > SimulateNext(int step, int searchEndJobId, time_t curTime, double & resultUtility);
 
     std::vector<std::vector<int> > constructResult(std::vector<MyJob*> & jobs);
 

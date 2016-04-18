@@ -50,7 +50,7 @@ private:
      *          number of machines on each rack 
      */
     std::vector<int> ReadConfigFile() {
-        std::ifstream t("config-none-timex1-c2x1-g6-h6-rho0.60");
+        std::ifstream t("config-timex1-c2x4-g4-h6-rho0.70");
 
         char c;
         std::string str;
@@ -136,6 +136,37 @@ private:
         }
         
     }
+
+
+    /** @brief Get the id of the random free machines,
+     *         For non (random) policy
+     */
+    int GetRandomFreeMachine() {
+        int rackIndex, machineIndex;
+        int rackNum = racks.size(), machineNum;
+        while(1) {
+            rackIndex = rand() % rackNum;
+            machineNum = racks[rackIndex].size();
+            machineIndex = rand() % machineNum;
+            if (racks[rackIndex][machineIndex].IsFree()) {
+                return racks[rackIndex][machineIndex].machineID;
+            }
+        }
+        return -1;
+    }
+
+
+    /** @brief Get the total number of free machines 
+     *         For non (random) policy  
+     */
+    int GetFreeMachinesNum() {
+        int count = 0;
+        for (unsigned int i = 0; i < racks.size(); i++)
+            for (unsigned int j = 0; j < racks[i].size(); j++)
+                if (racks[i][j].IsFree())
+                    count++;
+        return count;
+    }
     
 
     /** @brief print current resources allocation information */
@@ -185,6 +216,30 @@ private:
     }
 
     void Schedule() {
+        if (policy == none) {
+            if (GetFreeMachinesNum() >= pendingJobList.front()->k) {
+                MyJob* scheduledJob = pendingJobList.front();
+                pendingJobList.pop_front();
+                
+                int count = scheduledJob->k;
+                std::set<int32_t> machines;
+                while (count > 0) {
+                    machines.insert(GetRandomFreeMachine());
+                    count--;
+                }
+
+                AllocateBestMachines(scheduledJob, machines);
+                scheduledJob->Start(machines, false);
+            
+                AllocResourcesWrapper(scheduledJob->jobId, machines);
+            
+                runningJobList.push(scheduledJob);
+            }
+
+            return;
+        }
+
+
         Cluster* cluster = new Cluster(racks, pendingJobList, runningJobList, maxMachinesPerRack, (policy == soft));
         std::vector<std::vector<int> > schedule = cluster->Schedule();
         
