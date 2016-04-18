@@ -1,10 +1,13 @@
-TARGETS = YARNTetrischedService_client Ultimate_server
-HPPFILES = tetrisched_constants.h TetrischedService.h tetrisched_types.h YARNTetrischedService.h inter.h
-OBJS = tetrisched_constants.o TetrischedService.o tetrisched_types.o YARNTetrischedService.o
+#TARGETS = YARNTetrischedService_client Ultimate_server
+TARGETS = Ultimate_server
+#HPPFILES = tetrisched_constants.h TetrischedService.h tetrisched_types.h YARNTetrischedService.h inter.h
+HPPFILES = inter.h
+#OBJS = tetrisched_constants.o TetrischedService.o tetrisched_types.o YARNTetrischedService.o
+OBJS = 
 CC = g++
 CFLAGS = -Wall -Werror -DDEBUG -g # debug flags
 #CFLAGS = -Wall -Werror -Os # release flags
-LDFLAGS += -lthrift
+#LDFLAGS += -lthrift
 
 default:	Ultimate_server
 all:		$(TARGETS)
