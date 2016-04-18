@@ -1,5 +1,6 @@
 #include "inter.h"
 #include <ctime>
+#include <stdio.h>
 
 MyJob::MyJob(JobID jobId, job_t::type jobType, int32_t k, double duration, 
             double slowDuration, time_t arriveTime) {
@@ -9,6 +10,8 @@ MyJob::MyJob(JobID jobId, job_t::type jobType, int32_t k, double duration,
     this->duration = duration;
     this->slowDuration = slowDuration;
     this->arriveTime = arriveTime;
+
+
     this->startTime = -1;
 }
 
@@ -43,7 +46,7 @@ bool MyJob::IsFinished() {
 
 double MyJob::CalUtility(time_t curTime, bool isPrefered) {
     double waitingTime = difftime(curTime, arriveTime);
-    waitingTime = waitingTime < 0 ? 0 : curTime;
+    waitingTime = waitingTime < 0 ? 0 : waitingTime;
     double runningTime = isPrefered ? duration : slowDuration;
     double result = 1200 - waitingTime - runningTime;
     return result < 0 ? 0 : result;

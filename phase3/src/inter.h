@@ -16,16 +16,7 @@
 # define dbg_printf(...)
 #endif
 
-
 class MyMachine;
-
-typedef int32_t JobID;
-struct job_t {
-    enum type {
-        JOB_MPI,
-        JOB_GPU
-    };
-};
 
 class MyJob {
 public:
