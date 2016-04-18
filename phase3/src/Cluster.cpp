@@ -266,8 +266,8 @@ std::vector<std::vector<int> > Cluster::Schedule() {
                     maxUtility = tmpUtility;
                     bestMachines = tmpMachines;
                     isBestisPrefered = isPrefered;
-                    tmpMachines.clear();
                 }  
+                tmpMachines.clear();
             }
         }
 
@@ -369,8 +369,8 @@ double Cluster::CalAddedUtility(int delayJobNum) {
                         maxUtility = tmpUtility;
                         bestMachines = tmpMachines;
                         isBestisPrefered = isPrefered;
-                        tmpMachines.clear();
                     }  
+                    tmpMachines.clear();
                 }
             }
 
