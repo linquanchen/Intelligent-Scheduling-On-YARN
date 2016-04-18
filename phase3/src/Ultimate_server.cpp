@@ -7,11 +7,7 @@
  *  @bug No known bugs.
  */
 
-#include "TetrischedService.h"
-#include <thrift/protocol/TBinaryProtocol.h>
-#include <thrift/server/TSimpleServer.h>
-#include <thrift/transport/TServerSocket.h>
-#include <thrift/transport/TBufferTransports.h>
+
 #include <deque>
 #include <vector>
 #include <fstream>
@@ -25,21 +21,6 @@
 #include <stdio.h>
 
 #include <unistd.h>
-
-
-#include "YARNTetrischedService.h"
-#include <thrift/transport/TSocket.h>
-#include <thrift/transport/TTransportUtils.h>
-
-using namespace::apache::thrift;
-using namespace::apache::thrift::protocol;
-using namespace::apache::thrift::transport;
-using namespace::apache::thrift::server;
-
-
-using boost::shared_ptr;
-
-using namespace alsched;
 
 
 class TetrischedServiceHandler : virtual public TetrischedServiceIf
