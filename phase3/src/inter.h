@@ -35,6 +35,9 @@ using namespace alsched;
 # define dbg_printf(...)
 #endif
 
+#define SEARCH_STEP  5
+#define EXTRA_SEARCH_STEP 7
+
 class MyMachine;
 
 class MyJob {
