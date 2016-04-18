@@ -241,7 +241,7 @@ std::vector<std::vector<int> > Cluster::Schedule() {
     int counter = SEARCH_STEP;
     std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> tmpRunningJobList = runningJobList;
     
-    // searchEndJobId == -1 means no running job, search should be finished in step 0
+    // searchEndJobId == -1 means no running job, search should be finished immediately
     int searchEndJobId = -1;
     while (counter-- > 0 && !tmpRunningJobList.empty()) {
         searchEndJobId = (int)tmpRunningJobList.top()->jobId;
@@ -262,7 +262,11 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
         
         FreeMachinesByJob(finishedJob);
         
-        return Search(step, nextSearchEndJobId, finishedJob->GetFinishedTime(), resultUtility);
+        time_t nextTime = curTime;
+        if (difftime(finishedJob->GetFinishedTime(), curTime) > 0)
+            nextTime = finishedJob->GetFinishedTime();
+
+        return Search(step, nextSearchEndJobId, nextTime, resultUtility);
     }
 
 
@@ -306,10 +310,6 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
         }
 
         if (maxUtility > 0) {
-            if ((int)bestMachines.size() != (*bestJobIter)->k) {
-                dbg_printf("Here1: %d got %d machines (k = %d)\n", (*bestJobIter)->jobId, (int)bestMachines.size(), (*bestJobIter)->k);
-            }
-
             AllocateMachinesToJob(*bestJobIter, bestMachines, isBestisPrefered);
             potentialRunningJobs.push_back(*bestJobIter);
             pendingJobList.erase(bestJobIter);
@@ -323,28 +323,14 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
     // initial result is allocate resources for all potential running jobs 
     result = constructResult(potentialRunningJobs);
 
-    // initial resultUtility is the total utility that allocate resources for all potential running jobs 
-    resultUtility = 0;
+    double curUtility = 0;
     for (std::vector<double>::iterator it = potentialUtility.begin() ; it != potentialUtility.end(); ++it)
-        resultUtility += *it;
-
-    // searchEndJobId == -1, should end search immediately 
-    if (searchEndJobId == -1) {
-        return result;
-    }
+        curUtility += *it;
 
 
-    double curUtility = resultUtility;
-    while(!potentialRunningJobs.empty()) {
-        // delay the last potential running job
-        MyJob* myjob = potentialRunningJobs.back();
-        potentialRunningJobs.pop_back();
-        curUtility -= potentialUtility.back();
-        potentialUtility.pop_back();
+    resultUtility = -1;
+    while(true) {
         
-        pendingJobList.push_back(myjob);
-        FreeMachinesByJob(myjob);
-            
         std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> tmpRunningJobList = runningJobList;
         for (std::vector<MyJob*>::iterator it=potentialRunningJobs.begin(); 
                                         it != potentialRunningJobs.end(); ++it){
@@ -363,6 +349,20 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
             result = constructResult(potentialRunningJobs);
         }
 
+        // searchEndJobId == -1, should end search immediately 
+        if (potentialRunningJobs.empty() || searchEndJobId == -1)
+            break;
+
+        
+        // delay the last potential running job
+        MyJob* myjob = potentialRunningJobs.back();
+        potentialRunningJobs.pop_back();
+        curUtility -= potentialUtility.back();
+        potentialUtility.pop_back();
+        
+        pendingJobList.push_back(myjob);
+        FreeMachinesByJob(myjob);
+
     }
 
     return result;
@@ -375,8 +375,12 @@ std::vector<std::vector<int> > Cluster::SimulateNext(int step, int searchEndJobI
     int nextSearchEndJobId = ((int)finishedJob->jobId == searchEndJobId) ? -1 : searchEndJobId;
 
     FreeMachinesByJob(finishedJob);
+
+    time_t nextTime = curTime;
+    if (difftime(finishedJob->GetFinishedTime(), curTime) > 0)
+        nextTime = finishedJob->GetFinishedTime();
     
-    return Search(step-1, nextSearchEndJobId, finishedJob->GetFinishedTime(), resultUtility);
+    return Search(step-1, nextSearchEndJobId, nextTime, resultUtility);
 }
 
 
@@ -391,10 +395,6 @@ std::vector<std::vector<int> > Cluster::constructResult(std::vector<MyJob*> & jo
         for (std::set<int32_t>::iterator i=(*it)->assignedMachines.begin(); 
                                         i != (*it)->assignedMachines.end(); ++i) {
             tmp.push_back(*i);
-        }
-
-        if ((int)tmp.size() != (*it)->k + 2) {
-            dbg_printf("Here2: %d got %d machines (k = %d, assignedMachines = %d)\n", (*it)->jobId, (int)tmp.size()-2, (*it)->k, (int)(*it)->assignedMachines.size());
         }
 
         result.push_back(tmp);
