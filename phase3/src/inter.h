@@ -1,12 +1,31 @@
 #ifndef _INTER_H_
 #define _INTER_H_
 
+#include "TetrischedService.h"
+#include <thrift/protocol/TBinaryProtocol.h>
+#include <thrift/server/TSimpleServer.h>
+#include <thrift/transport/TServerSocket.h>
+#include <thrift/transport/TBufferTransports.h>
+#include "YARNTetrischedService.h"
+#include <thrift/transport/TSocket.h>
+#include <thrift/transport/TTransportUtils.h>
+
 #include <queue>
 #include <list>
 #include <set>
 #include <vector>
 #include <stdint.h>
 #include <ctime>
+
+using namespace::apache::thrift;
+using namespace::apache::thrift::protocol;
+using namespace::apache::thrift::transport;
+using namespace::apache::thrift::server;
+
+
+using boost::shared_ptr;
+
+using namespace alsched;
 
 #define MY_DEBUG
 
