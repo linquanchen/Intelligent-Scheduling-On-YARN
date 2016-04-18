@@ -271,9 +271,7 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
 
 
     std::vector<MyJob*> potentialRunningJobs;
-    std::vector<std::vector<int> > result;
     std::vector<double> potentialUtility;
-
     // try to allocate resources for one or more jobs
     while (true) {
         std::list<MyJob*>::iterator bestJobIter;
@@ -320,13 +318,18 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
             break;
     }
 
-    // initial result is allocate resources for all potential running jobs 
-    result = constructResult(potentialRunningJobs);
+
+    std::vector<std::vector<int> > result = constructResult(potentialRunningJobs);
 
     double curUtility = 0;
     for (std::vector<double>::iterator it = potentialUtility.begin() ; it != potentialUtility.end(); ++it)
         curUtility += *it;
 
+    // searchEndJobId == -1, should end search immediately 
+    if (searchEndJobId == -1) {
+        resultUtility = curUtility;
+        return result;
+    }
 
     resultUtility = -1;
     while(true) {
@@ -349,10 +352,8 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
             result = constructResult(potentialRunningJobs);
         }
 
-        // searchEndJobId == -1, should end search immediately 
-        if (potentialRunningJobs.empty() || searchEndJobId == -1)
+        if (potentialRunningJobs.empty())
             break;
-
         
         // delay the last potential running job
         MyJob* myjob = potentialRunningJobs.back();
@@ -362,7 +363,6 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
         
         pendingJobList.push_back(myjob);
         FreeMachinesByJob(myjob);
-
     }
 
     return result;
