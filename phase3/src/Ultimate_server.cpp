@@ -12,6 +12,7 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <string.h>
 #include "rapidjson/document.h"
 #include <ctime>
 #include <list>
@@ -26,14 +27,17 @@
 class TetrischedServiceHandler : virtual public TetrischedServiceIf
 {
 private:
+    enum {
+        none,
+        hard,
+        soft
+    } policy;
 
     /** @brief The list for job that waiting for allocating resources */
     std::list<MyJob*> pendingJobList;
 
     /** @brief The list for job that running */
     std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> runningJobList;
-
-
 
     /** @brief The racks and machines array */
     std::vector<std::vector<MyMachine> > racks;
@@ -68,6 +72,22 @@ private:
             if (maxMachinesPerRack < a[i].GetInt())
                 maxMachinesPerRack = a[i].GetInt();
         }
+
+        const rapidjson::Value& b = d["simtype"];
+        if (strcmp(b.GetString(), "none") == 0) {
+            policy = none;
+            dbg_printf("Using none policy\n");
+        } else if (strcmp(b.GetString(), "soft") == 0) {
+            policy = soft;
+            dbg_printf("Using soft policy\n");
+        } else if (strcmp(b.GetString(), "hard") == 0) {
+            policy = hard;
+            dbg_printf("Using hard policy\n");
+        } else {
+            policy = soft;
+            dbg_printf("Not specify policy, using soft policy\n");
+        }
+        
     
         return rv;
     }
@@ -165,7 +185,7 @@ private:
     }
 
     void Schedule() {
-        Cluster* cluster = new Cluster(racks, pendingJobList, runningJobList, maxMachinesPerRack);
+        Cluster* cluster = new Cluster(racks, pendingJobList, runningJobList, maxMachinesPerRack, (policy == soft));
         std::vector<std::vector<int> > schedule = cluster->Schedule();
         
         for (unsigned int i = 0; i < schedule.size(); i++) {

@@ -86,6 +86,8 @@ struct JobComparison {
 
 class Cluster {
 private:
+    bool isSoft;
+
     /** @brief The list for job that waiting for allocating resources */
     std::list<MyJob*> pendingJobList;
 
@@ -163,7 +165,7 @@ public:
     Cluster(std::vector<std::vector<MyMachine> > & racks, 
             std::list<MyJob*> & pendingJobList,
             std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> & runningJobList,
-            int maxMachinesPerRack);
+            int maxMachinesPerRack, bool isSoft);
 
     void Clear();
 

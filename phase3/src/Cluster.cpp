@@ -5,7 +5,7 @@
 Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks, 
             std::list<MyJob*> & pendingJobList,
             std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> & runningJobList,
-            int maxMachinesPerRack) {
+            int maxMachinesPerRack, bool isSoft) {
 
     this->racks = racks;
 
@@ -29,6 +29,7 @@ Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks,
     }
 
     this->maxMachinesPerRack = maxMachinesPerRack;
+    this->isSoft = isSoft;
 }
 
 
@@ -257,6 +258,12 @@ std::vector<std::vector<int> > Cluster::Schedule() {
                 // try to find the best (preferred) machine allocation
                 bool isPrefered = 
                         GetBestMachines((*i)->jobType, (*i)->k, tmpMachines);
+
+                if (!isPrefered && !isSoft) {
+                    // for hard policy, job remains pending if preference can not be satisfied
+                    tmpMachines.clear();
+                    continue;
+                }
                 
                 tmpUtility = (*i)->CalUtility(time(NULL), isPrefered);
 
@@ -314,7 +321,7 @@ std::vector<std::vector<int> > Cluster::Schedule() {
             tmpRunningJobList.push(*it);
         }
 
-        Cluster tmpCluster(racks, pendingJobList, tmpRunningJobList, maxMachinesPerRack);
+        Cluster tmpCluster(racks, pendingJobList, tmpRunningJobList, maxMachinesPerRack, isSoft);
         double addedUtility = tmpCluster.CalAddedUtility(delayJobNum);
         tmpCluster.Clear();
 
@@ -360,6 +367,13 @@ double Cluster::CalAddedUtility(int delayJobNum) {
                     // try to find the best (preferred) machine allocation
                     bool isPrefered = 
                             GetBestMachines((*i)->jobType, (*i)->k, tmpMachines);
+
+                    if (!isPrefered && !isSoft) {
+                        // impossible, something wrong
+                        dbg_printf("error in CalAddedUtility(): for hard policy, allocation should always be prefered!\n");
+                        tmpMachines.clear();
+                        continue;
+                    }
                     
                     tmpUtility = (*i)->CalUtility(curTime, isPrefered);
 
@@ -382,7 +396,7 @@ double Cluster::CalAddedUtility(int delayJobNum) {
                 addedUtility += maxUtility;
             } else
                 // impossible, something wrong
-                dbg_printf("error in CalAddedUtility!\n");
+                dbg_printf("error in CalAddedUtility(): allocation should always success!\n");
         }
 
         if (resultUtility < addedUtility)
