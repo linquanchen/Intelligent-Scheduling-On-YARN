@@ -24,6 +24,8 @@
 #include <queue>
 #include <stdio.h>
 
+#include <unistd.h>
+
 
 #include "YARNTetrischedService.h"
 #include <thrift/transport/TSocket.h>
@@ -89,8 +91,8 @@ private:
         return rv;
     }
 
-    MyMachine* GetMachineByID(unsigned int id) {
-        unsigned int rackID = 0;
+    MyMachine* GetMachineByID(uint32_t id) {
+        uint32_t rackID = 0;
         while (id >= racks[rackID].size()) {
             id -= racks[rackID].size();
             rackID++;
@@ -276,11 +278,16 @@ public:
         // free machine resource one by one
         for (std::set<int32_t>::iterator it=machines.begin(); 
                 it!=machines.end(); ++it) {
+            
             int machineID = *it;
-            MyMachine *machine = GetMachineByID(machineID);
-            machine->Free();
+            
 
+            MyMachine *machine = GetMachineByID(machineID);
+            
             MyJob *job = machine->belongedJob;
+            
+            machine->Free();
+            
             job->FreeMachine(machineID);
             
             if (job->IsFinished()) {
@@ -321,5 +328,6 @@ int main(int argc, char **argv)
     TSimpleServer server(processor, serverTransport, transportFactory, protocolFactory);
     server.serve();
     return 0;
-}
+ }
+
 
