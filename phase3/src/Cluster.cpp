@@ -378,7 +378,7 @@ double Cluster::CalAddedUtility(int delayJobNum) {
                 addedUtility += maxUtility;
             } else
                 // impossible, something wrong
-                dbg_printf("error in CalAddedUtility!");
+                dbg_printf("error in CalAddedUtility!\n");
         }
 
         if (resultUtility < addedUtility)

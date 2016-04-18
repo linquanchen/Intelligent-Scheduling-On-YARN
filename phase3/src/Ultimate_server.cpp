@@ -146,10 +146,11 @@ private:
     /** @brief print current queued job information */
     void printJobInfo() {
         dbg_printf("=============================================\n");
-        dbg_printf("Id\tType\tk\tfast\t\tslow\n");
+        dbg_printf("Id\tType\tk\tfast\t\tslow\t\tfast utility\t\tslow utility\n");
         for (std::list<MyJob*>::iterator i=pendingJobList.begin(); i != pendingJobList.end(); ++i){
-            dbg_printf("%d\t%d\t%d\t%f\t%f\n", (*i)->jobId, (*i)->jobType, 
-                                    (*i)->k, (*i)->duration, (*i)->slowDuration);
+            dbg_printf("%d\t%d\t%d\t%f\t%f\t%f\t%f\n", (*i)->jobId, (*i)->jobType, 
+                                    (*i)->k, (*i)->duration, (*i)->slowDuration, 
+                                    (*i)->CalUtility(time(NULL), true), (*i)->CalUtility(time(NULL), false));
         }
         dbg_printf("=============================================\n");
     }
@@ -165,10 +166,6 @@ private:
     }
 
     void Schedule() {
-        dbg_printf("before schedule\n");
-        printRackInfo();
-        printJobInfo();
-        
         Cluster* cluster = new Cluster(racks, pendingJobList, runningJobList, maxMachinesPerRack);
         std::vector<std::vector<int> > schedule = cluster->Schedule();
         
@@ -180,7 +177,7 @@ private:
             
             MyJob *scheduledJob = getPendingJobByID(jobID);
             if (scheduledJob == NULL) {
-                dbg_printf("something wrong in Schedule() of sheculer");
+                dbg_printf("something wrong in Schedule() of sheculer\n");
             }
             
             std::set<int32_t> machines; 
@@ -199,7 +196,7 @@ private:
         cluster->Clear();
         delete cluster;
 
-        dbg_printf("after schedule\n");
+        dbg_printf("After schedule\n");
         printRackInfo();
         printJobInfo();
     }
@@ -277,6 +274,7 @@ public:
                     if (runningJobList.top()->jobId == job->jobId) {
                         MyJob *tmp = runningJobList.top();
                         runningJobList.pop();
+                        dbg_printf("A job %d is finished, real time: %f, expected time: %f\n", tmp->jobId, difftime(time(NULL), tmp->startTime), tmp->isPrefered ? tmp->duration : tmp->slowDuration);
                         delete tmp;
                         break;
                     }
