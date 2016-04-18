@@ -99,7 +99,6 @@ private:
      */
     void AllocResourcesWrapper(int jobId, std::set<int32_t> & machines) {
         dbg_printf("Allocate %d machines for %d\n", (int)machines.size(),jobId);
-        printRackInfo();
 
         
         int yarnport = 9090;
@@ -145,14 +144,14 @@ private:
 
     /** @brief print current queued job information */
     void printJobInfo() {
-        dbg_printf("=============================================\n");
-        dbg_printf("Id\tType\tk\tfast\t\tslow\t\tfast utility\t\tslow utility\n");
+        dbg_printf("===================================================================================\n");
+        dbg_printf("Id\tType\tk\tfast\t\tslow\t\tfast utility\tslow utility\n");
         for (std::list<MyJob*>::iterator i=pendingJobList.begin(); i != pendingJobList.end(); ++i){
             dbg_printf("%d\t%d\t%d\t%f\t%f\t%f\t%f\n", (*i)->jobId, (*i)->jobType, 
                                     (*i)->k, (*i)->duration, (*i)->slowDuration, 
                                     (*i)->CalUtility(time(NULL), true), (*i)->CalUtility(time(NULL), false));
         }
-        dbg_printf("=============================================\n");
+        dbg_printf("==================================================================================\n");
     }
 
     MyJob* getPendingJobByID(int jobID) {
@@ -237,8 +236,8 @@ public:
                                             duration should be positive\n");
         }
 
-        dbg_printf("a new job comming: id:%d, type:%d, k:%d\n", jobId, 
-                jobType, k);
+        dbg_printf("a new job comming: id:%d, type:%d, k:%d, fast:%f, slow:%f\n", jobId, 
+                jobType, k, duration, slowDuration);
 
         pendingJobList.push_back(
                 new MyJob(jobId, jobType, k, duration, slowDuration, time(NULL)));
