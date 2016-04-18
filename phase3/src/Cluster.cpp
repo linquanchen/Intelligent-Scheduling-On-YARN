@@ -272,6 +272,10 @@ std::vector<std::vector<int> > Cluster::Schedule() {
         }
 
         if (maxUtility > 0) {
+            if (bestMachines.size() == 7) {
+                dbg_printf("%d got 7 machines (k = %d)\n", (*bestJobIter)->jobId, (*bestJobIter)->k);
+            }
+
             AllocateMachinesToJob(*bestJobIter, bestMachines, isBestisPrefered);
             potentialRunningJobs.push_back(*bestJobIter);
             pendingJobList.erase(bestJobIter);
@@ -406,6 +410,10 @@ std::vector<std::vector<int> > Cluster::constructResult(std::vector<MyJob*> & jo
         for (std::set<int32_t>::iterator i=(*it)->assignedMachines.begin(); 
                                         i != (*it)->assignedMachines.end(); ++i) {
             tmp.push_back(*i);
+        }
+
+        if (tmp.size() == 9) {
+            dbg_printf("%d got 7 machines (k = %d, assignedMachines = %d)\n", (*it)->jobId, (*it)->k, (*it)->assignedMachines.size());
         }
 
         result.push_back(tmp);
