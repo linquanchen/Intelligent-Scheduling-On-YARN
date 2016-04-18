@@ -6,13 +6,12 @@
  *
  *  @bug No known bugs.
  */
-/*
+
 #include "TetrischedService.h"
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/server/TSimpleServer.h>
 #include <thrift/transport/TServerSocket.h>
 #include <thrift/transport/TBufferTransports.h>
-*/
 #include <deque>
 #include <vector>
 #include <fstream>
@@ -25,11 +24,9 @@
 #include <queue>
 #include <stdio.h>
 
-
-
 #include <unistd.h>
 
-/*
+
 #include "YARNTetrischedService.h"
 #include <thrift/transport/TSocket.h>
 #include <thrift/transport/TTransportUtils.h>
@@ -43,9 +40,9 @@ using namespace::apache::thrift::server;
 using boost::shared_ptr;
 
 using namespace alsched;
-*/
 
-class TetrischedServiceHandler // : virtual public TetrischedServiceIf
+
+class TetrischedServiceHandler : virtual public TetrischedServiceIf
 {
 private:
 
@@ -123,7 +120,7 @@ private:
         dbg_printf("Allocate %d machines for %d\n", (int)machines.size(),jobId);
         printRackInfo();
 
-        /*
+        
         int yarnport = 9090;
         shared_ptr<TTransport> socket(new TSocket("localhost", yarnport));
         shared_ptr<TTransport> transport(new TBufferedTransport(socket));
@@ -137,7 +134,7 @@ private:
         } catch (TException& tx) {
             dbg_printf("ERROR calling YARN : %s\n", tx.what());
         }
-        */
+        
     }
     
 
@@ -320,7 +317,7 @@ public:
 
 int main(int argc, char **argv)
 {   
-    /*
+    
     int alschedport = 9091;
     shared_ptr<TetrischedServiceHandler> handler(new TetrischedServiceHandler());
     shared_ptr<TProcessor> processor(new TetrischedServiceProcessor(handler));
@@ -331,21 +328,6 @@ int main(int argc, char **argv)
     TSimpleServer server(processor, serverTransport, transportFactory, protocolFactory);
     server.serve();
     return 0;
-    */
-    TetrischedServiceHandler tetrischedServiceHandler;
-
-    int counter = 0;
-    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 6, 0, 10, 20);
-    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 6, 0, 10, 20);
-    tetrischedServiceHandler.AddJob(counter++, job_t::JOB_MPI, 6, 0, 10, 20);
-    
-    std::set<int32_t> machines;
-    machines.insert(4);
-    machines.insert(5);
-    machines.insert(6);
-    machines.insert(7);
-    machines.insert(8);
-    machines.insert(9);
-    tetrischedServiceHandler.FreeResources(machines);
  }
+
 
