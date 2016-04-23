@@ -13,11 +13,11 @@ generate a hostfile with all hosts that are part of your experiment
 go to the emulab login page -> Experimentation->Experiment List -> YOUREXPERIMENT -> Details tab
 copy the list of machines to ~/tetris.deth  on your " master node "
 
-m.Phase3Team1010.ClusterSched16.nome.nx
-s-1.Phase3Team1010.ClusterSched16.nome.nx
-s-2.Phase3Team1010.ClusterSched16.nome.nx
-s-3.Phase3Team1010.ClusterSched16.nome.nx
-s-4.Phase3Team1010.ClusterSched16.nome.nx
+m.Phase3Team101010.ClusterSched16.nome.nx
+s-1.Phase3Team101010.ClusterSched16.nome.nx
+s-2.Phase3Team101010.ClusterSched16.nome.nx
+s-3.Phase3Team101010.ClusterSched16.nome.nx
+s-4.Phase3Team101010.ClusterSched16.nome.nx
 
 cd ~
 tetris.sh
