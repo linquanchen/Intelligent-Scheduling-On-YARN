@@ -1,4 +1,4 @@
-/** @file Ultimate_server.cpp
+    /** @file Ultimate_server.cpp
  *  @brief This file contains implementation of a Tetrischeduler server
  *
  *  @author Ke Wu <kewu@andrew.cmu.edu>
@@ -44,6 +44,8 @@ private:
 
     /** @brief The max number of machines on the same rack */
     int maxMachinesPerRack;
+
+    //char* configFilePath;
 
     /** @brief Read config-mini config file for topology information
      *  @return A vector which size is the number of racks, each value is the 
@@ -224,11 +226,15 @@ private:
                 int count = scheduledJob->k;
                 std::set<int32_t> machines;
                 while (count > 0) {
-                    machines.insert(GetRandomFreeMachine());
+                    int32_t machineID = GetRandomFreeMachine();
+                    GetMachineByID(machineID)->AssignJob(scheduledJob);
+                    machines.insert(machineID);
                     count--;
                 }
-
-                AllocateBestMachines(scheduledJob, machines);
+                
+                //printf("machine size: %d\n", machines.size());
+                //AllocateBestMachines(scheduledJob, machines);
+                
                 scheduledJob->Start(machines, false);
             
                 AllocResourcesWrapper(scheduledJob->jobId, machines);
@@ -370,7 +376,13 @@ public:
 
 int main(int argc, char **argv)
 {   
-    
+/*    for (int i = 1; i < argc; i++) {
+        if (argv[i] == "-c") {
+            configFilePath = argv[i+1];
+        }
+    }
+    std::cout << configFilePath;
+*/
     int alschedport = 9091;
     shared_ptr<TetrischedServiceHandler> handler(new TetrischedServiceHandler());
     shared_ptr<TProcessor> processor(new TetrischedServiceProcessor(handler));
