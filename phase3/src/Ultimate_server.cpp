@@ -7,7 +7,7 @@
  *  @bug No known bugs.
  */
 
-
+#include <iostream>
 #include <deque>
 #include <vector>
 #include <fstream>
@@ -46,7 +46,7 @@ private:
     int maxMachinesPerRack;
 
     /** @brief The path of the config file */
-    char* configFilePath;
+    char* configFilePath = NULL;
 
     /** @brief Read config-mini config file for topology information
      *  @return A vector which size is the number of racks, each value is the 
@@ -285,8 +285,18 @@ public:
     /** @brief Initilize Tetri server, read rack config info */
     TetrischedServiceHandler() {
         maxMachinesPerRack = 0;
-
-        std::vector<int> rackInfo = ReadConfigFile();
+        
+        std::vector<int> rackInfo;
+        // Read rack info and policy from con/fig file.
+        if (configFilePath != NULL) {
+            rackInfo = ReadConfigFile();
+        }
+        // Using default rack info and policy.
+        else {
+            int rack[4] = {4, 6, 6, 6};
+            rackInfo.assign(&rack[0], &rack[0]+4);
+            policy = soft;
+        }
 
         int count = 0;
         for (unsigned int i = 0; i < rackInfo.size(); i++) {
@@ -379,10 +389,11 @@ int main(int argc, char **argv)
     // Read the path of the config file
     if ((argc == 3) && (strcmp(argv[1], "-c") == 0)) {
         configFilePath = argv[2];
+        std::cout << "Read rack info and policy from config file...." << std::endl;
     }
     else {
-        std::cout << "You should run the server as: ./schedpolserver -c config-provided-to-you" << std::endl;
-        return 0;
+        std::cout << "Using the default rack info and policy...." << std::endl;
+        stf::cout << "Rack Info: [4, 6, 6, 6]; Policy: soft." << std::endl;
     }
 
     int alschedport = 9091;
