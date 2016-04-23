@@ -27,6 +27,7 @@
 class TetrischedServiceHandler : virtual public TetrischedServiceIf
 {
 private:
+    /** @brief Policy using for the scheduler, default is soft */
     enum {
         none,
         hard,
@@ -94,6 +95,7 @@ private:
         return rv;
     }
 
+    /** @brief Return the machine given its id */
     MyMachine* GetMachineByID(uint32_t id) {
         uint32_t rackID = 0;
         while (id >= racks[rackID].size()) {
@@ -207,6 +209,7 @@ private:
         dbg_printf("==================================================================================\n");
     }
 
+    /** @brief Return the pending job given its id */
     MyJob* getPendingJobByID(int jobID) {
         for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
                 i != pendingJobList.end(); ++i) {
@@ -217,8 +220,10 @@ private:
         return NULL;
     }
 
+    /** @brief Schedule 0, 1 or more jobs that are pending, given current free resources */
     void Schedule() {
         if (policy == none) {
+            // for none policy, just using random FIFO
             if (GetFreeMachinesNum() >= pendingJobList.front()->k) {
                 MyJob* scheduledJob = pendingJobList.front();
                 pendingJobList.pop_front();
@@ -232,9 +237,6 @@ private:
                     count--;
                 }
                 
-                //printf("machine size: %d\n", machines.size());
-                //AllocateBestMachines(scheduledJob, machines);
-                
                 scheduledJob->Start(machines, false);
             
                 AllocResourcesWrapper(scheduledJob->jobId, machines);
@@ -245,8 +247,10 @@ private:
             return;
         }
 
-
+        // for hard policy and soft policy, create a snapshot of the current scheduler and do scheduling
         Cluster* cluster = new Cluster(racks, pendingJobList, runningJobList, maxMachinesPerRack, (policy == soft));
+        // The result is a vector where each element represents a schduled job 
+        // with format <jobId, isPrefered, machine0, machine1, machine2, ...>
         std::vector<std::vector<int> > schedule = cluster->Schedule();
         
         for (unsigned int i = 0; i < schedule.size(); i++) {
