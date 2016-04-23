@@ -1,3 +1,12 @@
+/** @file inter.h
+ *  @brief This file contains implementation of a Tetrischeduler server
+ *
+ *  @author Ke Wu <kewu@andrew.cmu.edu>
+ *  @author Linquan Chen <linquanc@andrew.cmu.edu>
+ *
+ *  @bug No known bugs.
+ */
+
 #ifndef _INTER_H_
 #define _INTER_H_
 
@@ -21,11 +30,9 @@ using namespace::apache::thrift;
 using namespace::apache::thrift::protocol;
 using namespace::apache::thrift::transport;
 using namespace::apache::thrift::server;
-
+using namespace alsched;
 
 using boost::shared_ptr;
-
-using namespace alsched;
 
 #define MY_DEBUG
 
@@ -89,6 +96,7 @@ struct JobComparison {
 
 class Cluster {
 private:
+    /** @brief true if the policy is soft, else false */
     bool isSoft;
 
     /** @brief The list for job that waiting for allocating resources */
@@ -103,84 +111,30 @@ private:
     /** @brief The max number of machines on the same rack */
     int maxMachinesPerRack;
     
-    
     MyMachine* GetMachineByID(unsigned int id);
 
-    /** @brief Get the total number of free machines */
     int GetFreeMachinesNum();
 
-    /** @brief Mark a set of machines as allocated
-     *  @param machines The set of machines that will be marked as allocated
-     */
-    void AllocateMachinesToJob(MyJob* job, std::set<int32_t> & machines,
-            bool isPrefered);
+    void AllocateMachinesToJob(MyJob* job, std::set<int32_t> & machines, bool isPrefered);
 
     void FreeMachinesByJob(MyJob* job);
 
-    /** @brief Get free VM number of every rack
-     *  @return free VM number of every rack
-     */
     std::vector<int> GetFreeMachines();
 
-    /** @brief Get k VMs from rack index
-     *  @param machines The set of machines to store k VMs
-     *  @param k The number of machines that the is asking
-     *  @param index The rack to get k VMs
-     */
     void GetMachineByRack(std::set<int> & machines, int k, int index);
 
-    
-    /** @brief Get the rack number which has minimum free VMs
-     *  @param freemachines the free VM number of every rack
-     *  @return the index of the rack
-     */
     int FindMinRack(std::vector<int> & freeMachines);
 
-    /** @brief Get machines for MPI job.
-     *  @param machines The set of machines that will be allocated to the job 
-     *  @param k The number of machines that the job is asking 
-     *  @return true if on job's preferred allocation, else false
-     */
     bool GetMachinesForMPI(std::set<int> & machines, int k);
 
-    /** @brief Get machines for GPU job.
-     *  @param machines The set of machines that will be allocated to the job 
-     *  @param k The number of machines that the job is asking 
-     *  @return true if on job's preferred allocation, else false
-     */
     bool GetMachinesForGPU(std::set<int> & machines, int k);
 
-    /** @brief Get machines for specific job.
-     *  @param machines The set of machines that will be allocated to the job 
-     *  @param jobType The type of the job
-     *  @param k The number of machines that the job is asking 
-     *  @return true if on job's preferred allocation, else false
-     */
-    bool GetBestMachines(job_t::type jobType, int k, 
-                                                std::set<int32_t> &machines);
+    bool GetBestMachines(job_t::type jobType, int k, std::set<int32_t> &machines);
 
-    /** @brief 
-     *  @param step
-     *  @param searchEndJobId
-     *  @param curTime
-     *  @param resultUtility
-     *  @return 
-     */
     std::vector<std::vector<int> > Search(int step, int searchEndJobId, time_t curTime, double & resultUtility);
 
-    /** @brief 
-     *  @param step
-     *  @param searchEndJobId
-     *  @param curTime
-     *  @param resultUtility
-     *  @return 
-     */
     std::vector<std::vector<int> > SimulateNext(int step, int searchEndJobId, time_t curTime, double & resultUtility);
 
-    /** @brief
-     *  @jobs
-     *  @return 
-     */
     std::vector<std::vector<int> > constructResult(std::vector<MyJob*> & jobs);
 
 public:
@@ -191,10 +145,7 @@ public:
 
     void Clear();
 
-    // for each vector, 0 is jobID, 1 indicates if is prefered, 
-    // 2...n is machine ID
     std::vector<std::vector<int> > Schedule();
 };
-
 
 #endif

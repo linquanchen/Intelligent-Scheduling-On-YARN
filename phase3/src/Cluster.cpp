@@ -1,20 +1,37 @@
+/** @file Cluster.cpp
+ *  @briei This file contains implementation of the Cluster, which can be used to 
+ *         get the scheduling decision based on N-step search.
+ *
+ *  @author Ke Wu <kewu@andrew.cmu.edu>
+ *  @author Linquan Chen <linquanc@andrew.cmu.edu>
+ *
+ *  @bug No know bugs.
+ */
 #include "inter.h"
 #include <stdio.h>
 
-    
+/** @brief Construcor.
+ *  @param racks The vector of Machines of every rack
+ *  @param pendingjoblist The list contains all pending jobs
+ *  @param runningjoblist The priority queue contains all running jobs
+ *  @param maxmachinesperrack The number of max machines
+ *  @param isSoft true if the policy is soft, else false
+ */
 Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks, 
             std::list<MyJob*> & pendingJobList,
             std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> & runningJobList,
             int maxMachinesPerRack, bool isSoft) {
 
     this->racks = racks;
-
+    
+    // Copy the pending jobs to the cluster.
     for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
                                              i != pendingJobList.end(); ++i) {
         MyJob* newJob = new MyJob(*i);
         this->pendingJobList.push_back(newJob);
     }
     
+    // Copy the running jobs to the Cluster.
     std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> tmp = runningJobList;
     while(!tmp.empty()) {
         MyJob* tmpJob = tmp.top();
@@ -32,13 +49,15 @@ Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks,
     this->isSoft = isSoft;
 }
 
-
+/** @brief Free the current cluster. */
 void Cluster::Clear() {
+    // Clear the pending jobs.
     for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
                                              i != pendingJobList.end(); ++i) {
         delete (*i);
     }
-
+    
+    // Clear the running jobs.
     while(!runningJobList.empty()) {
         MyJob* tmpJob = runningJobList.top();
         runningJobList.pop();
@@ -46,6 +65,28 @@ void Cluster::Clear() {
     }
 }
 
+/** @brief Get the running decision to get highest utility.
+ *  @return For each vector, 0 is jobID, 1 indicates if is prefered, 2...n is machine ID
+ */
+std::vector<std::vector<int> > Cluster::Schedule() {
+    int counter = SEARCH_STEP;
+    std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> tmpRunningJobList = runningJobList;
+    
+    // searchEndJobId == -1 means no running job, search should be finished immediately
+    int searchEndJobId = -1;
+    while (counter-- > 0 && !tmpRunningJobList.empty()) {
+        searchEndJobId = (int)tmpRunningJobList.top()->jobId;
+        tmpRunningJobList.pop();
+    }
+
+    double resultUtility;
+    return Search(EXTRA_SEARCH_STEP, searchEndJobId, time(NULL), resultUtility);
+}
+
+/** @brief Get the machine based on the machine ID.
+ *  @param id the machine id
+ *  @return the machine correspond to the id
+ */
 MyMachine* Cluster::GetMachineByID(unsigned int id) {
     unsigned int rackID = 0;
     while (id >= racks[rackID].size()) {
@@ -77,6 +118,9 @@ void Cluster::AllocateMachinesToJob(MyJob* job, std::set<int32_t> & machines, bo
     job->Start(machines, isPrefered);
 }
 
+/** @brief Free machines belong to the job
+ *  @param job the freed job
+ */
 void Cluster::FreeMachinesByJob(MyJob* job) {
     std::set<int32_t> tmpMachines = job->assignedMachines;
 
@@ -216,7 +260,6 @@ bool Cluster::GetMachinesForGPU(std::set<int> & machines, int k) {
     return false;
 } 
 
-
 /** @brief Get machines for specific job.
  *  @param machines The set of machines that will be allocated to the job 
  *  @param jobType The type of the job
@@ -237,21 +280,13 @@ bool Cluster::GetBestMachines(job_t::type jobType, int k,
     } 
 }
 
-std::vector<std::vector<int> > Cluster::Schedule() {
-    int counter = SEARCH_STEP;
-    std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> tmpRunningJobList = runningJobList;
-    
-    // searchEndJobId == -1 means no running job, search should be finished immediately
-    int searchEndJobId = -1;
-    while (counter-- > 0 && !tmpRunningJobList.empty()) {
-        searchEndJobId = (int)tmpRunningJobList.top()->jobId;
-        tmpRunningJobList.pop();
-    }
-
-    double resultUtility;
-    return Search(EXTRA_SEARCH_STEP, searchEndJobId, time(NULL), resultUtility);
-}
-
+/** @brief Search for the running decision to get highest utility.
+ *  @param step The number of search step
+ *  @param searchEndJobId The job which is the end of the search process
+ *  @param curTime current time
+ *  @param resultUtility The total utility of each search process
+ *  @return For each vector, 0 is jobID, 1 indicates if is prefered, 2...n is machine ID
+ */
 std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, time_t curTime, double & resultUtility) {
     if (step == 0 && searchEndJobId != -1) {
         // no search step left, can not search decisions, just go to the last search step
@@ -318,9 +353,9 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
             break;
     }
 
-
     std::vector<std::vector<int> > result = constructResult(potentialRunningJobs);
-
+    
+    // Get the current total utility.
     double curUtility = 0;
     for (std::vector<double>::iterator it = potentialUtility.begin() ; it != potentialUtility.end(); ++it)
         curUtility += *it;
@@ -340,13 +375,14 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
             tmpRunningJobList.push(*it);
         }
 
-
+        // Based on the current the allocated decision, schedule the next allocated decision 
+        // and get the total utility.
         double nextResultUtility;
         Cluster cluster(racks, pendingJobList, tmpRunningJobList, maxMachinesPerRack, isSoft);
         cluster.SimulateNext(step, searchEndJobId, curTime, nextResultUtility);
         cluster.Clear();
 
-
+        // Compare the current schedule utility with the last best one.
         if (curUtility + nextResultUtility > resultUtility) {
             resultUtility = curUtility + nextResultUtility;
             result = constructResult(potentialRunningJobs);
@@ -368,10 +404,18 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
     return result;
 }
 
+/** @brief Simulate the next seasrch step based on the last time.
+ *  @param step The number of search step
+ *  @param searchEndJobId The job which is the end of the search process
+ *  @param curTime current time
+ *  @param resultUtility The total utility of each search process
+ *  @return For each vector, 0 is jobID, 1 indicates if is prefered, 2...n is machine ID
+ */
 std::vector<std::vector<int> > Cluster::SimulateNext(int step, int searchEndJobId, time_t curTime, double & resultUtility) {
     MyJob* finishedJob = runningJobList.top();
     runningJobList.pop();
-
+    
+    // Check if it is the end job
     int nextSearchEndJobId = ((int)finishedJob->jobId == searchEndJobId) ? -1 : searchEndJobId;
 
     FreeMachinesByJob(finishedJob);
@@ -379,11 +423,14 @@ std::vector<std::vector<int> > Cluster::SimulateNext(int step, int searchEndJobI
     time_t nextTime = curTime;
     if (difftime(finishedJob->GetFinishedTime(), curTime) > 0)
         nextTime = finishedJob->GetFinishedTime();
-    
+    // Start the next step search based on the last decision.
     return Search(step-1, nextSearchEndJobId, nextTime, resultUtility);
 }
 
-
+/** @brief Get job info and allocated machines from the potential jobs.
+ *  @jobs The vector of jobs that will run potentially
+ *  @return For each vector, 0 is jobID, 1 indicates if is prefered, 2...n is machine ID
+ */
 std::vector<std::vector<int> > Cluster::constructResult(std::vector<MyJob*> & jobs) {
     std::vector<std::vector<int> > result;
 
@@ -399,7 +446,6 @@ std::vector<std::vector<int> > Cluster::constructResult(std::vector<MyJob*> & jo
 
         result.push_back(tmp);
     }
-
     return result;
 }
 
