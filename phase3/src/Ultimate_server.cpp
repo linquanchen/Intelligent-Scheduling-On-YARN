@@ -45,14 +45,15 @@ private:
     /** @brief The max number of machines on the same rack */
     int maxMachinesPerRack;
 
-    //char* configFilePath;
+    /** @brief The path of the config file */
+    char* configFilePath;
 
     /** @brief Read config-mini config file for topology information
      *  @return A vector which size is the number of racks, each value is the 
      *          number of machines on each rack 
      */
     std::vector<int> ReadConfigFile() {
-        std::ifstream t("config-timex1-c2x4-g4-h6-rho0.70");
+        std::ifstream t(configFilePath);
 
         char c;
         std::string str;
@@ -89,7 +90,6 @@ private:
             policy = soft;
             dbg_printf("Not specify policy, using soft policy\n");
         }
-        
     
         return rv;
     }
@@ -376,13 +376,15 @@ public:
 
 int main(int argc, char **argv)
 {   
-/*    for (int i = 1; i < argc; i++) {
-        if (argv[i] == "-c") {
-            configFilePath = argv[i+1];
-        }
+    // Read the path of the config file
+    if ((argc == 3) && (strcmp(argv[1], "-c") == 0)) {
+        configFilePath = argv[2];
     }
-    std::cout << configFilePath;
-*/
+    else {
+        std::cout << "You should run the server as: ./schedpolserver -c config-provided-to-you" << std::endl;
+        return 0;
+    }
+
     int alschedport = 9091;
     shared_ptr<TetrischedServiceHandler> handler(new TetrischedServiceHandler());
     shared_ptr<TProcessor> processor(new TetrischedServiceProcessor(handler));
