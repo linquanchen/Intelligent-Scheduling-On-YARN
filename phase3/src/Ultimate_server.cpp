@@ -1,4 +1,4 @@
-    /** @file Ultimate_server.cpp
+/** @file Ultimate_server.cpp
  *  @brief This file contains implementation of a Tetrischeduler server
  *
  *  @author Ke Wu <kewu@andrew.cmu.edu>

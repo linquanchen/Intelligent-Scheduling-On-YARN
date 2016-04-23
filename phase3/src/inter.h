@@ -1,3 +1,12 @@
+/** @file inter.h
+ *  @brief This file contains implementation of a Tetrischeduler server
+ *
+ *  @author Ke Wu <kewu@andrew.cmu.edu>
+ *  @author Linquan Chen <linquanc@andrew.cmu.edu>
+ *
+ *  @bug No known bugs.
+ */
+
 #ifndef _INTER_H_
 #define _INTER_H_
 
