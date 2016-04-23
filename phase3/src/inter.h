@@ -150,7 +150,6 @@ private:
      */
     bool GetMachinesForGPU(std::set<int> & machines, int k);
 
-
     /** @brief Get machines for specific job.
      *  @param machines The set of machines that will be allocated to the job 
      *  @param jobType The type of the job
@@ -160,10 +159,28 @@ private:
     bool GetBestMachines(job_t::type jobType, int k, 
                                                 std::set<int32_t> &machines);
 
+    /** @brief 
+     *  @param step
+     *  @param searchEndJobId
+     *  @param curTime
+     *  @param resultUtility
+     *  @return 
+     */
     std::vector<std::vector<int> > Search(int step, int searchEndJobId, time_t curTime, double & resultUtility);
 
+    /** @brief 
+     *  @param step
+     *  @param searchEndJobId
+     *  @param curTime
+     *  @param resultUtility
+     *  @return 
+     */
     std::vector<std::vector<int> > SimulateNext(int step, int searchEndJobId, time_t curTime, double & resultUtility);
 
+    /** @brief
+     *  @jobs
+     *  @return 
+     */
     std::vector<std::vector<int> > constructResult(std::vector<MyJob*> & jobs);
 
 public:
