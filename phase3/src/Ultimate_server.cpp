@@ -7,7 +7,6 @@
  *  @bug No known bugs.
  */
 
-#include <iostream>
 #include <deque>
 #include <vector>
 #include <fstream>
@@ -393,11 +392,11 @@ int main(int argc, char **argv)
     // Read the path of the config file
     if ((argc == 3) && (strcmp(argv[1], "-c") == 0)) {
         configFilePath = argv[2];
-        std::cout << "Read rack info and policy from config file...." << std::endl;
+        printf("Read rack info and policy from config file....\n");
     }
     else {
-        std::cout << "Using the default rack info and policy...." << std::endl;
-        stf::cout << "Rack Info: [4, 6, 6, 6]; Policy: soft." << std::endl;
+        printf("Using the default rack info and policy....\n");
+        printf("Rack Info: [4, 6, 6, 6]; Policy: soft.\n";
     }
 
     int alschedport = 9091;
