@@ -35,7 +35,7 @@
     "sched_horizon": 10,
     "secsPerAlschedTimeUnit": 10,
     "simduration": 1800,
-    "simtype": "none",
+    "simtype": "soft",
     "tetrischedPort": 9091,
     "traceduration": 1800,
     "traces": {
