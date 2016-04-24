@@ -10,7 +10,7 @@
 #include "inter.h"
 #include <stdio.h>
 
-/** @brief Construcor.
+/** @brief Construcor. Create a snapshot of the currrent scheduler
  *  @param racks The vector of Machines of every rack
  *  @param pendingjoblist The list contains all pending jobs
  *  @param runningjoblist The priority queue contains all running jobs
@@ -49,7 +49,7 @@ Cluster::Cluster(std::vector<std::vector<MyMachine> > & racks,
     this->isSoft = isSoft;
 }
 
-/** @brief Free the current cluster. */
+/** @brief Free resources of the cluster object. */
 void Cluster::Clear() {
     // Clear the pending jobs.
     for (std::list<MyJob*>::iterator i=pendingJobList.begin(); 
@@ -65,7 +65,7 @@ void Cluster::Clear() {
     }
 }
 
-/** @brief Get the running decision to get highest utility.
+/** @brief Get the running decision to acheieve the highest utility.
  *  @return For each vector, 0 is jobID, 1 indicates if is prefered, 2...n is machine ID
  */
 std::vector<std::vector<int> > Cluster::Schedule() {
@@ -148,8 +148,8 @@ std::vector<int> Cluster::GetFreeMachines() {
     return freeMachines;
 }
 
-/** @brief Get k VMs from rack index
- *  @param machines The set of machines to store k VMs
+/** @brief Get k free VMs from rack index
+ *  @param machines The set of machines to store k free VMs
  *  @param k The number of machines that the is asking
  *  @param index The rack to get k VMs
  */
@@ -183,7 +183,7 @@ int Cluster::FindMinRack(std::vector<int> & freeMachines) {
     return index;
 }
 
-/** @brief Get machines for MPI job.
+/** @brief Get (preferred configuration) machines for MPI job.
  *  @param machines The set of machines that will be allocated to the job 
  *  @param k The number of machines that the job is asking 
  *  @return true if on job's preferred allocation, else false
@@ -230,7 +230,7 @@ bool Cluster::GetMachinesForMPI(std::set<int> & machines, int k) {
     return false;
 }
 
-/** @brief Get machines for GPU job.
+/** @brief Get (preferred configuration) machines for GPU job.
  *  @param machines The set of machines that will be allocated to the job 
  *  @param k The number of machines that the job is asking 
  *  @return true if on job's preferred allocation, else false
@@ -304,10 +304,11 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
         return Search(step, nextSearchEndJobId, nextTime, resultUtility);
     }
 
-
+    // potentialRunningJobs is used to store the (maximum possible) jobs that can be scheduled with current 
+    // resources, the first element in potentialRunningJobs is the job with the highest utiltiy
     std::vector<MyJob*> potentialRunningJobs;
     std::vector<double> potentialUtility;
-    // try to allocate resources for one or more jobs
+    // try to schedule as many jobs as possible with current resources, following the utility greedy policy
     while (true) {
         std::list<MyJob*>::iterator bestJobIter;
         double maxUtility = -1, tmpUtility;
@@ -342,6 +343,7 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
             }
         }
 
+        // find a runnable job with current left resources, add it to potentialRunningJobs
         if (maxUtility > 0) {
             AllocateMachinesToJob(*bestJobIter, bestMachines, isBestisPrefered);
             potentialRunningJobs.push_back(*bestJobIter);
@@ -355,7 +357,7 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
 
     std::vector<std::vector<int> > result = constructResult(potentialRunningJobs);
     
-    // Get the current total utility.
+    // Get the current total utility, which is the total utility if all potentialRunningJobs are really scheduled
     double curUtility = 0;
     for (std::vector<double>::iterator it = potentialUtility.begin() ; it != potentialUtility.end(); ++it)
         curUtility += *it;
@@ -366,16 +368,18 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
         return result;
     }
 
+    // try to delay one or more jobs in potentialRunningJobs (i.e. don't run all jobs even some resources are available)
     resultUtility = -1;
     while(true) {
         
+        // add all jobs in potentialRunningJobs to runningJobList
         std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> tmpRunningJobList = runningJobList;
         for (std::vector<MyJob*>::iterator it=potentialRunningJobs.begin(); 
                                         it != potentialRunningJobs.end(); ++it){
             tmpRunningJobList.push(*it);
         }
 
-        // Based on the current the allocated decision, schedule the next allocated decision 
+        // Based on the current the allocated decision, simulate and schedule the next allocated decision 
         // and get the total utility.
         double nextResultUtility;
         Cluster cluster(racks, pendingJobList, tmpRunningJobList, maxMachinesPerRack, isSoft);
@@ -391,7 +395,7 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
         if (potentialRunningJobs.empty())
             break;
         
-        // delay the last potential running job
+        // delay the last potential running job (add it back to pendingJobList, free resources)
         MyJob* myjob = potentialRunningJobs.back();
         potentialRunningJobs.pop_back();
         curUtility -= potentialUtility.back();
@@ -411,7 +415,8 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
  *  @param resultUtility The total utility of each search process
  *  @return For each vector, 0 is jobID, 1 indicates if is prefered, 2...n is machine ID
  */
-std::vector<std::vector<int> > Cluster::SimulateNext(int step, int searchEndJobId, time_t curTime, double & resultUtility) {
+std::vector<std::vector<int> > Cluster::SimulateNext(int step, int searchEndJobId, time_t curTime, 
+                                                                                            double & resultUtility) {
     MyJob* finishedJob = runningJobList.top();
     runningJobList.pop();
     
