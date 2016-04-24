@@ -1,0 +1,243 @@
+{
+    "YARNaddr": "10.GID.1.10",
+    "YARNport": 9090,
+    "availFactor": [
+        0.0,
+        1.0,
+        0.9
+    ],
+    "avail_deadline_duration_fraction": 1,
+    "avail_desired_queuing_factor": 0,
+    "c2": 4,
+    "cache_enable": true,
+    "duration_perturb_mean": 0,
+    "duration_perturb_std": 0,
+    "expoutfile": "expout-none-timex1-c2x4-g4-h6-rho0.70",
+    "gpu_desired_completion_factor": 10000,
+    "gpunodes": 4,
+    "hdfs_desired_completion_factor": 10000,
+    "hdfsnodes": 6,
+    "highAvail": 0.99999997,
+    "lowAvail": 0.999995,
+    "mpi_desired_completion_factor": 10000,
+    "nodefailprob": 0.001,
+    "none_desired_completion_factor": 10000,
+    "oracle_enable": false,
+    "penalty_factor": 1,
+    "rack_cap": [
+        4,
+        6,
+        6,
+        6
+    ],
+    "rackfailprob": 0.001,
+    "rho": 0.7,
+    "sched_horizon": 10,
+    "secsPerAlschedTimeUnit": 10,
+    "simduration": 1800,
+    "simtype": "none",
+    "tetrischedPort": 9091,
+    "traceduration": 1800,
+    "traces": {
+        "Avail": {
+            "C2": [
+                4,
+                4
+            ],
+            "filename": "traceAvail-c2x4-rho0.70",
+            "jobtype": 4,
+            "maxK": 72,
+            "meanDuration": 100,
+            "meanK": 4,
+            "minDuration": 50,
+            "minK": 2,
+            "period": [
+                1800,
+                1810
+            ],
+            "rho": [
+                0.0,
+                0.0
+            ],
+            "slowdown": 1
+        },
+        "GPU": {
+            "C2": [
+                4,
+                4
+            ],
+            "durationList": [
+                {
+                    "duration": 39,
+                    "job": "bt.A.x",
+                    "slowduration": 71
+                },
+                {
+                    "duration": 172,
+                    "job": "bt.B.x",
+                    "slowduration": 335
+                },
+                {
+                    "duration": 295,
+                    "job": "bt.J.x",
+                    "slowduration": 558
+                },
+                {
+                    "duration": 196,
+                    "job": "sp.B.x",
+                    "slowduration": 318
+                },
+                {
+                    "duration": 70,
+                    "job": "cg.B.x",
+                    "slowduration": 120
+                },
+                {
+                    "duration": 243,
+                    "job": "cg.C.x",
+                    "slowduration": 410
+                }
+            ],
+            "filename": "traceGPU-c2x4-rho0.70",
+            "jobtype": 2,
+            "maxK": 4,
+            "meanDuration": 600,
+            "meanK": 2.5,
+            "minDuration": 300,
+            "minK": 2,
+            "period": [
+                1800,
+                1810
+            ],
+            "rho": [
+                0.13999999999999999,
+                0.0
+            ],
+            "slowdown": 2
+        },
+        "HDFS": {
+            "C2": [
+                4,
+                4
+            ],
+            "filename": "traceHDFS-c2x4-rho0.70",
+            "jobtype": 1,
+            "maxK": 32,
+            "meanDuration": 100,
+            "meanK": 4,
+            "minDuration": 50,
+            "minK": 2,
+            "period": [
+                1800,
+                1810
+            ],
+            "rho": [
+                0.0,
+                0.0
+            ],
+            "slowdown": 2
+        },
+        "MPI": {
+            "C2": [
+                4,
+                4
+            ],
+            "durationKList": [
+                {
+                    "duration": 67,
+                    "job": "ft.B.4",
+                    "k": 4,
+                    "slowduration": 78
+                },
+                {
+                    "duration": 139,
+                    "job": "ft.O.4",
+                    "k": 4,
+                    "slowduration": 165
+                },
+                {
+                    "duration": 198,
+                    "job": "ft.P.4",
+                    "k": 4,
+                    "slowduration": 229
+                },
+                {
+                    "duration": 278,
+                    "job": "ft.Q.4",
+                    "k": 4,
+                    "slowduration": 305
+                },
+                {
+                    "duration": 315,
+                    "job": "ft.C.4",
+                    "k": 4,
+                    "slowduration": 345
+                },
+                {
+                    "duration": 344,
+                    "job": "ft.R.4",
+                    "k": 4,
+                    "slowduration": 387
+                }
+            ],
+            "filename": "traceMPI-c2x4-rho0.70",
+            "jobtype": 0,
+            "period": [
+                1800,
+                1810
+            ],
+            "rho": [
+                0.5599999999999999,
+                0.0
+            ],
+            "slowdown": 2
+        },
+        "None": {
+            "C2": [
+                4,
+                4
+            ],
+            "filename": "traceNone-c2x4-rho0.70",
+            "jobtype": 5,
+            "maxK": 72,
+            "meanDuration": 100,
+            "meanK": 4,
+            "minDuration": 50,
+            "minK": 2,
+            "period": [
+                1800,
+                1810
+            ],
+            "rho": [
+                0.0,
+                0.0
+            ],
+            "slowdown": 1
+        },
+        "Web": {
+            "C2": [
+                4,
+                4
+            ],
+            "filename": "traceWeb-c2x4-rho0.70",
+            "jobtype": 3,
+            "maxK": 72,
+            "meanDuration": 100,
+            "meanK": 4,
+            "minDuration": 50,
+            "minK": 2,
+            "period": [
+                1800,
+                1810
+            ],
+            "rho": [
+                0.0,
+                0.0
+            ],
+            "slowdown": 1
+        }
+    },
+    "web_deadline_duration_fraction": 1,
+    "web_desired_queuing_factor": 0,
+    "webfactor": 0.5
+}
