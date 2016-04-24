@@ -45,9 +45,6 @@ private:
     /** @brief The max number of machines on the same rack */
     int maxMachinesPerRack;
 
-    /** @brief The path of the config file */
-    char* configFilePath = NULL;
-
     /** @brief Read config-mini config file for topology information
      *  @return A vector which size is the number of racks, each value is the 
      *          number of machines on each rack 
@@ -246,8 +243,10 @@ private:
             return;
         }
 
-        // for hard policy and soft policy, create a snapshot of the current scheduler and do scheduling
-        Cluster* cluster = new Cluster(racks, pendingJobList, runningJobList, maxMachinesPerRack, (policy == soft));
+        // for hard policy and soft policy, create a snapshot of 
+        // the current scheduler and do scheduling
+        Cluster* cluster = new Cluster(racks, pendingJobList, runningJobList, 
+                maxMachinesPerRack, (policy == soft));
         // The result is a vector where each element represents a schduled job 
         // with format <jobId, isPrefered, machine0, machine1, machine2, ...>
         std::vector<std::vector<int> > schedule = cluster->Schedule();
@@ -285,6 +284,9 @@ private:
     }
 
 public:
+    /** @brief The path of the config file */
+    static char* configFilePath;
+
     /** @brief Initilize Tetri server, read rack config info */
     TetrischedServiceHandler() {
         maxMachinesPerRack = 0;
@@ -299,6 +301,7 @@ public:
             int rack[4] = {4, 6, 6, 6};
             rackInfo.assign(&rack[0], &rack[0]+4);
             policy = soft;
+            maxMachinesPerRack = 6;
         }
 
         int count = 0;
@@ -367,7 +370,9 @@ public:
                     if (runningJobList.top()->jobId == job->jobId) {
                         MyJob *tmp = runningJobList.top();
                         runningJobList.pop();
-                        dbg_printf("A job %d is finished, real time: %f, expected time: %f\n", tmp->jobId, difftime(time(NULL), tmp->startTime), tmp->isPrefered ? tmp->duration : tmp->slowDuration);
+                        dbg_printf("A job %d is finished, real time: %f, expected time: %f\n", 
+                                tmp->jobId, difftime(time(NULL), tmp->startTime), 
+                                tmp->isPrefered ? tmp->duration : tmp->slowDuration);
                         delete tmp;
                         break;
                     }
@@ -387,16 +392,19 @@ public:
 
 };
 
+char* TetrischedServiceHandler::configFilePath = NULL;
+
 int main(int argc, char **argv)
 {   
     // Read the path of the config file
     if ((argc == 3) && (strcmp(argv[1], "-c") == 0)) {
-        configFilePath = argv[2];
+        TetrischedServiceHandler::configFilePath = argv[2];
         printf("Read rack info and policy from config file....\n");
     }
     else {
+        TetrischedServiceHandler::configFilePath = NULL;
         printf("Using the default rack info and policy....\n");
-        printf("Rack Info: [4, 6, 6, 6]; Policy: soft.\n";
+        printf("Rack Info: [4, 6, 6, 6]; Policy: soft.\n");
     }
 
     int alschedport = 9091;

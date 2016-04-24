@@ -49,36 +49,63 @@ class MyMachine;
 
 class MyJob {
 public:
+    /** @brief The job id. */
     JobID jobId;
+    
+    /** @brief The job type. */
     job_t::type jobType;
+
+    /** @brief The number of machines that the job needs. */
     int32_t k;
+
+    /** @brief The fast duration and slow duration that the job runs. */
     double duration, slowDuration;
+
+    /** @brief The arrive and start time of the job. */
     time_t arriveTime, startTime;
+
+    /** @brief True if the job is allocated to preferrd resources, else false. */
     bool isPrefered;
+
+    /** @brief The set of machines that allocate to the job. */
     std::set<int32_t> assignedMachines;
 
     MyJob(JobID jobId, job_t::type jobType, int32_t k, double duration, 
                 double slowDuration, time_t arriveTime);
+    
     MyJob(MyJob* job);
+    
     void Start(std::set<int32_t> & machines, bool isPrefered);
+    
     void FreeMachine(int machineID);
+    
     bool IsFinished();
+    
     double CalUtility(time_t curTime, bool isPrefered);
+    
     time_t GetFinishedTime();
 };
 
 class MyMachine{
 public:
+    /** @brief The machine id. */
     int machineID;
+
+    /** @brief The job that the machine allocates to. */
     MyJob* belongedJob;
     
     MyMachine(int machineID);
+
     void AssignJob(MyJob* job);
+    
     void Free();
+    
     bool IsFree();
 };
 
-
+/** @brief A comparator used for priority queue(runningjoblist) 
+ *         based on the running time of the job. 
+ */
 struct JobComparison {
     bool operator() (const MyJob* job1, const MyJob* job2) const {
         int endTime1, endTime2;

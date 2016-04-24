@@ -13,7 +13,7 @@ YARNTetrischedService_client:	$(OBJS) YARNTetrischedService_client.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 Ultimate_server:	$(OBJS) Ultimate_server.o Cluster.o MyJob.o MyMachine.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o schedpolserver $^ $(LDFLAGS)
 
 %.o: %.cpp $(HPPFILES)
 	$(CC) $(CFLAGS) -c -o $@ $<
