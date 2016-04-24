@@ -104,7 +104,7 @@ public:
 };
 
 /** @brief A comparator used for priority queue(runningjoblist) 
- *         based on the running time of the job. 
+ *         based on the finish time of the job. 
  */
 struct JobComparison {
     bool operator() (const MyJob* job1, const MyJob* job2) const {

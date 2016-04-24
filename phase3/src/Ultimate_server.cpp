@@ -220,7 +220,7 @@ private:
     void Schedule() {
         if (policy == none) {
             // for none policy, just using random FIFO
-            if (GetFreeMachinesNum() >= pendingJobList.front()->k) {
+            while (GetFreeMachinesNum() >= pendingJobList.front()->k) {
                 MyJob* scheduledJob = pendingJobList.front();
                 pendingJobList.pop_front();
                 

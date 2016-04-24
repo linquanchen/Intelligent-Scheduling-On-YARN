@@ -65,21 +65,27 @@ void Cluster::Clear() {
     }
 }
 
-/** @brief Get the running decision to acheieve the highest utility.
+/** @brief Get the running decision to acheieve the highest utility using n-step search algorithm.
  *  @return For each vector, 0 is jobID, 1 indicates if is prefered, 2...n is machine ID
  */
 std::vector<std::vector<int> > Cluster::Schedule() {
+
     int counter = SEARCH_STEP;
     std::priority_queue<MyJob*, std::vector<MyJob*>, JobComparison> tmpRunningJobList = runningJobList;
     
     // searchEndJobId == -1 means no running job, search should be finished immediately
     int searchEndJobId = -1;
+
+    // find the searching end job, this job limits the maximum search steps. It should be the nth running job
+    // in the current runningJobList
     while (counter-- > 0 && !tmpRunningJobList.empty()) {
         searchEndJobId = (int)tmpRunningJobList.top()->jobId;
         tmpRunningJobList.pop();
     }
 
     double resultUtility;
+
+    // starting searching, with maximum EXTRA_SEARCH_STEP steps, searching shoud end when encounter searchEndJobId
     return Search(EXTRA_SEARCH_STEP, searchEndJobId, time(NULL), resultUtility);
 }
 
@@ -283,8 +289,8 @@ bool Cluster::GetBestMachines(job_t::type jobType, int k,
 /** @brief Search for the running decision to get highest utility.
  *  @param step The number of search step
  *  @param searchEndJobId The job which is the end of the search process
- *  @param curTime current time
- *  @param resultUtility The total utility of each search process
+ *  @param curTime "Current" time of simulation
+ *  @param resultUtility The total utility of each search process, this is also a return value
  *  @return For each vector, 0 is jobID, 1 indicates if is prefered, 2...n is machine ID
  */
 std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, time_t curTime, double & resultUtility) {
@@ -307,7 +313,10 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
     // potentialRunningJobs is used to store the (maximum possible) jobs that can be scheduled with current 
     // resources, the first element in potentialRunningJobs is the job with the highest utiltiy
     std::vector<MyJob*> potentialRunningJobs;
+    // potentialUtility stores the utilities gained from each job in potentialRunningJobs
     std::vector<double> potentialUtility;
+
+
     // try to schedule as many jobs as possible with current resources, following the utility greedy policy
     while (true) {
         std::list<MyJob*>::iterator bestJobIter;
@@ -368,6 +377,7 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
         return result;
     }
 
+
     // try to delay one or more jobs in potentialRunningJobs (i.e. don't run all jobs even some resources are available)
     resultUtility = -1;
     while(true) {
@@ -411,7 +421,7 @@ std::vector<std::vector<int> > Cluster::Search(int step, int searchEndJobId, tim
 /** @brief Simulate the next seasrch step based on the last time.
  *  @param step The number of search step
  *  @param searchEndJobId The job which is the end of the search process
- *  @param curTime current time
+ *  @param curTime The "current" time of simulation
  *  @param resultUtility The total utility of each search process
  *  @return For each vector, 0 is jobID, 1 indicates if is prefered, 2...n is machine ID
  */
@@ -425,9 +435,11 @@ std::vector<std::vector<int> > Cluster::SimulateNext(int step, int searchEndJobI
 
     FreeMachinesByJob(finishedJob);
 
+    // the next time of simulated scheduling will happen when the job at the head of the runningJobList finish runnning
     time_t nextTime = curTime;
     if (difftime(finishedJob->GetFinishedTime(), curTime) > 0)
         nextTime = finishedJob->GetFinishedTime();
+
     // Start the next step search based on the last decision.
     return Search(step-1, nextSearchEndJobId, nextTime, resultUtility);
 }
